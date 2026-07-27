@@ -20,6 +20,8 @@ from innovation_governance_hub.persistence.models import (
     Expense,
     GateCriterionDefinition,
     Initiative,
+    InitiativeAssessment,
+    InitiativeIndicator,
     Meeting,
     MeetingDecision,
     StageTransition,
@@ -198,6 +200,69 @@ def seed() -> dict[str, int]:
                     )
                 )
         first = initiatives[0]
+        assessment_profiles = (
+            (5, 5, 5, 4, 1, 1),
+            (5, 4, 4, 4, 4, 4),
+            (2, 2, 3, 3, 2, 2),
+            (2, 2, 2, 2, 5, 4),
+            (4, 5, 3, 4, 2, 2),
+            (4, 4, 4, 3, 4, 3),
+            (3, 3, 4, 4, 2, 1),
+            (2, 3, 2, 3, 4, 5),
+        )
+        for initiative, assessment_profile in zip(
+            initiatives[:8], assessment_profiles, strict=True
+        ):
+            if not session.scalar(
+                select(InitiativeAssessment).where(
+                    InitiativeAssessment.initiative_id == initiative.id
+                )
+            ):
+                session.add(
+                    InitiativeAssessment(
+                        initiative_id=initiative.id,
+                        strategic_alignment=assessment_profile[0],
+                        expected_value=assessment_profile[1],
+                        urgency=assessment_profile[2],
+                        confidence=assessment_profile[3],
+                        complexity=assessment_profile[4],
+                        execution_risk=assessment_profile[5],
+                        rationale="Avaliação fictícia preparada para o comitê.",
+                        assessed_by="Comitê demonstrativo",
+                    )
+                )
+        indicator_profiles = (
+            ("Redução do tempo de ciclo", "Dias", 20, 8, 9, "Reduzir", -1),
+            ("Adoção do processo", "Percentual", 20, 80, 62, "Aumentar", -3),
+            ("Erros operacionais", "Quantidade", 30, 5, 24, "Reduzir", -8),
+            ("Benefício validado", "Real", 0, 100000, None, "Aumentar", None),
+        )
+        for initiative, indicator_profile in zip(initiatives[:4], indicator_profiles, strict=True):
+            if not session.scalar(
+                select(InitiativeIndicator).where(
+                    InitiativeIndicator.initiative_id == initiative.id,
+                    InitiativeIndicator.name == indicator_profile[0],
+                )
+            ):
+                session.add(
+                    InitiativeIndicator(
+                        initiative_id=initiative.id,
+                        name=indicator_profile[0],
+                        description="Indicador fictício de resultado para demonstração.",
+                        unit=indicator_profile[1],
+                        baseline_value=Decimal(indicator_profile[2]),
+                        target_value=Decimal(indicator_profile[3]),
+                        current_value=Decimal(indicator_profile[4])
+                        if indicator_profile[4] is not None
+                        else None,
+                        direction=indicator_profile[5],
+                        owner=f"Responsável Indicador {initiative.id}",
+                        measurement_date=(business_date() + timedelta(days=indicator_profile[6]))
+                        if indicator_profile[6] is not None
+                        else None,
+                        notes="Dados totalmente fictícios.",
+                    )
+                )
         if not session.scalar(select(Meeting).where(Meeting.title == "Kick-off demonstrativo")):
             meeting = Meeting(
                 initiative_id=first.id,
@@ -225,6 +290,27 @@ def seed() -> dict[str, int]:
                     deadline=business_date() - timedelta(days=2),
                     status="Aberta",
                 )
+            )
+            session.add_all(
+                [
+                    ActionItem(
+                        meeting_id=meeting.id,
+                        initiative_id=first.id,
+                        description="Revisar evidências do próximo gate.",
+                        owner="Bruno Exemplo",
+                        deadline=business_date() + timedelta(days=5),
+                        status="Em andamento",
+                    ),
+                    ActionItem(
+                        meeting_id=meeting.id,
+                        initiative_id=first.id,
+                        description="Consolidar aprendizados do experimento.",
+                        owner="Ana Demo",
+                        deadline=business_date() - timedelta(days=7),
+                        status="Concluída",
+                        completed_at=datetime.now() - timedelta(days=6),
+                    ),
+                ]
             )
         if not session.scalar(select(StageTransition.id)):
             session.add(
