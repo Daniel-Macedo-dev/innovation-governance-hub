@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from hashlib import sha256
 from io import BytesIO
 
 import pandas as pd
@@ -8,7 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from innovation_governance_hub.domain.enums import FinancialStatus, InitiativeStatus, Stage
-from innovation_governance_hub.persistence.models import Expense, Initiative
+from innovation_governance_hub.persistence.models import Expense, ImportBatch, Initiative
+from innovation_governance_hub.services.audit_service import AuditService
 
 from .templates import EXPENSE_COLUMNS, INITIATIVE_COLUMNS
 
@@ -38,6 +40,7 @@ class ImportPreview:
     kind: str
     rows: list[dict[str, object]]
     issues: list[ImportIssue]
+    fingerprint: str = ""
 
     @property
     def valid(self) -> bool:
@@ -108,7 +111,7 @@ def preview_initiatives(source: bytes, existing_codes: set[str] | None = None) -
     frame = _read(source)
     issues = _missing_columns(frame, INITIATIVE_COLUMNS)
     if issues:
-        return ImportPreview("initiatives", [], issues)
+        return ImportPreview("initiatives", [], issues, sha256(source).hexdigest())
     rows: list[dict[str, object]] = []
     seen = set(existing_codes or set())
     for offset, record in frame.iterrows():
@@ -175,14 +178,14 @@ def preview_initiatives(source: bytes, existing_codes: set[str] | None = None) -
                 "notes": _text(record["Observações"]),
             }
         )
-    return ImportPreview("initiatives", rows, issues)
+    return ImportPreview("initiatives", rows, issues, sha256(source).hexdigest())
 
 
 def preview_expenses(source: bytes, initiatives: dict[str, int]) -> ImportPreview:
     frame = _read(source)
     issues = _missing_columns(frame, EXPENSE_COLUMNS)
     if issues:
-        return ImportPreview("expenses", [], issues)
+        return ImportPreview("expenses", [], issues, sha256(source).hexdigest())
     rows: list[dict[str, object]] = []
     for offset, record in frame.iterrows():
         row_number = int(offset) + 2
@@ -217,29 +220,57 @@ def preview_expenses(source: bytes, initiatives: dict[str, int]) -> ImportPrevie
                 "amount": _money(record["Valor"], row_number, "Valor", issues, True),
             }
         )
-    return ImportPreview("expenses", rows, issues)
+    return ImportPreview("expenses", rows, issues, sha256(source).hexdigest())
 
 
-def persist_preview(session: Session, preview: ImportPreview) -> int:
+def persist_preview(session: Session, preview: ImportPreview, actor: str = "Sistema") -> int:
     if not preview.valid:
         raise ValueError("A importação possui erros e não pode ser persistida.")
-    if preview.kind == "initiatives":
-        highest = max(
-            (int(code.split("-")[1]) for code in session.scalars(select(Initiative.code)).all()),
-            default=0,
+    if preview.fingerprint and session.scalar(
+        select(ImportBatch.id).where(ImportBatch.fingerprint == preview.fingerprint)
+    ):
+        raise ValueError("Este arquivo já foi importado.")
+    with session.begin_nested():
+        if preview.kind == "initiatives":
+            highest = max(
+                (
+                    int(code.split("-")[1])
+                    for code in session.scalars(select(Initiative.code)).all()
+                ),
+                default=0,
+            )
+            for source_row in preview.rows:
+                row = dict(source_row)
+                if not row["code"]:
+                    highest += 1
+                    row["code"] = f"INI-{highest:03d}"
+                row["last_activity_at"] = datetime.now()
+                session.add(Initiative(**row))
+        elif preview.kind == "expenses":
+            for row in preview.rows:
+                session.add(Expense(**dict(row)))
+        else:
+            raise ValueError("Tipo de importação desconhecido.")
+        session.flush()
+        if preview.fingerprint:
+            session.add(
+                ImportBatch(
+                    fingerprint=preview.fingerprint,
+                    import_type=preview.kind,
+                    row_count=len(preview.rows),
+                    imported_by=actor,
+                )
+            )
+        AuditService(session).record(
+            event_type="excel.imported",
+            entity_type="Importacao",
+            entity_id=None,
+            entity_code=preview.fingerprint[:12],
+            action="importação",
+            actor=actor,
+            summary=f"{len(preview.rows)} registros importados de {preview.kind}.",
+            metadata={"kind": preview.kind, "row_count": len(preview.rows)},
         )
-        for row in preview.rows:
-            if not row["code"]:
-                highest += 1
-                row["code"] = f"INI-{highest:03d}"
-            row["last_activity_at"] = datetime.now()
-            session.add(Initiative(**row))
-    elif preview.kind == "expenses":
-        for row in preview.rows:
-            session.add(Expense(**row))
-    else:
-        raise ValueError("Tipo de importação desconhecido.")
-    session.flush()
     return len(preview.rows)
 
 

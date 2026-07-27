@@ -3,6 +3,7 @@ from decimal import Decimal
 from io import BytesIO
 
 import pandas as pd
+import pytest
 from sqlalchemy import func, select
 
 from innovation_governance_hub.excel.importers import (
@@ -49,6 +50,8 @@ def test_initiative_import_valid_and_persisted(session):
     assert preview.rows[0]["planned_cost"] == Decimal("10500.50")
     assert persist_preview(session, preview) == 1
     assert session.scalar(select(Initiative).where(Initiative.code == "INI-900")) is not None
+    with pytest.raises(ValueError, match="já foi importado"):
+        persist_preview(session, preview)
 
 
 def test_initiative_import_reports_missing_column_and_duplicate():
