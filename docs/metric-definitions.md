@@ -11,4 +11,8 @@
 - **Percentual consumido:** realizado / orçamento × 100; orçamento zero retorna zero.
 - **Acima do orçamento:** realizado da iniciativa maior que planejado.
 - **Adoção de IA:** ativos / estimados × 100, limitada entre 0 e 100; estimativa zero retorna zero.
-
+- **Comprometido:** realizado acumulado mais despesas previstas cadastradas.
+- **Saldo após compromissos:** planejado menos comprometido.
+- **Variação:** planejado menos realizado; percentual usa o planejado e retorna zero quando ele é zero.
+- **Média recente:** média dos três últimos meses decorridos, incluindo meses sem gasto.
+- **Projeção até dezembro:** realizado + previsto + média recente nos meses futuros. É demonstrativa, não estatística.

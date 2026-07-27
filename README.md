@@ -8,11 +8,11 @@ Aplicação local multipage para demonstrar gestão de iniciativas, gates, gover
 
 - Dashboard executivo com indicadores, gráficos e listas de atenção.
 - Funil sequencial com critérios automáticos, manuais e aprovações; tentativas bloqueadas são auditadas.
-- Documentos locais, histórico, reuniões e resumo determinístico em modo demonstração.
-- Casos de IA com risco, revisão, adoção e validação de aprovação.
-- Orçamento anual e despesas realizadas/previstas em `Decimal`.
-- Importação transacional de iniciativas e custos, templates e relatório executivo XLSX.
-- Alertas locais, API pequena e webhook n8n opcional.
+- Documentos locais, reuniões e linha do tempo imutável de eventos relevantes.
+- Casos de IA com histórico decisório, justificativas, restrições e próxima revisão.
+- Orçamento em `Decimal`, compromissos, variação e projeção simples até dezembro.
+- Importação transacional com fingerprint contra reprocessamento.
+- Alertas com reconhecimento, resolução, descarte justificado e reabertura auditada.
 
 ## Stack e arquitetura
 

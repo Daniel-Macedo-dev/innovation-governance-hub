@@ -4,3 +4,4 @@ Inicie com `docker compose --profile automation up -d n8n`, abra `http://localho
 
 O nó final é deliberadamente `No Op`: substitua-o por e-mail somente depois de cadastrar credenciais reais no n8n. Para callback, adicione um HTTP Request para `/api/v1/notifications/callback` com o fingerprint e o token. Em Docker, `localhost` dentro de um contêiner não aponta para o host; use nomes de serviço ou `host.docker.internal`. Não há credenciais hardcoded.
 
+O Hub mantém ciclo de vida e auditoria quando o n8n está desligado. Falhas de webhook permanecem visíveis e podem ser reprocessadas; o workflow não deve receber chaves de IA nem conteúdo integral de documentos.
