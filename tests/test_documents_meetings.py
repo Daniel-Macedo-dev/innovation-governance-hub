@@ -4,7 +4,6 @@ from decimal import Decimal
 import pytest
 
 from innovation_governance_hub.config import Settings
-from innovation_governance_hub.domain.schemas import MeetingSummaryResult
 from innovation_governance_hub.exceptions import ValidationError
 from innovation_governance_hub.persistence.models import (
     ActionItem,
@@ -35,16 +34,6 @@ def initiative():
         planned_cost=Decimal("10"),
         expected_benefit=Decimal("20"),
         notes="",
-    )
-
-
-def summary():
-    return MeetingSummaryResult(
-        executive_summary="Resumo",
-        decisions=["Decisão"],
-        action_items=["Ação"],
-        provider_name="Local",
-        mode="Modo demonstração local",
     )
 
 
@@ -87,12 +76,13 @@ def test_meeting_persists_decisions_and_actions(session):
         date.today(),
         "Ana",
         "Ata válida",
-        summary(),
+        "Resumo executivo manual",
         ["Aprovar piloto"],
         [{"description": "Preparar indicador", "owner": "Ana", "deadline": date.today()}],
     )
     session.flush()
     assert meeting.id
+    assert meeting.executive_summary == "Resumo executivo manual"
     assert session.query(MeetingDecision).count() == 1
     assert session.query(ActionItem).count() == 1
 
@@ -108,7 +98,7 @@ def test_meeting_rejects_incomplete_action(session):
             date.today(),
             "",
             "Ata",
-            summary(),
+            "",
             [],
             [{"description": "Ação", "owner": ""}],
         )
@@ -125,7 +115,7 @@ def test_action_can_be_created_and_is_audited(session):
         date.today(),
         "Ana",
         "Ata válida",
-        summary(),
+        "",
         [],
         [],
     )

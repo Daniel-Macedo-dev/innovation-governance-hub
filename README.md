@@ -28,7 +28,7 @@ O **Comitê de Inovação** consolida o que requer decisão, a saúde explicáve
 | Gate bloqueado | Timeline da iniciativa |
 | ![Gate bloqueado por critérios pendentes](docs/screenshots/03-gate-bloqueado.png) | ![Linha do tempo auditável da iniciativa](docs/screenshots/04-timeline-iniciativa.png) |
 | Orçamento e projeção | Reunião e resumo local |
-| ![Orçamento anual, compromissos e projeção simples](docs/screenshots/06-orcamento-projecao.png) | ![Ata fictícia resumida em modo demonstração local](docs/screenshots/07-resumo-reuniao.png) |
+| ![Orçamento anual, compromissos e projeção simples](docs/screenshots/06-orcamento-projecao.png) | ![Reunião fictícia com resumo executivo manual](docs/screenshots/07-resumo-reuniao.png) |
 | Importação Excel | Automações e alertas |
 | ![Prévia validada de uma importação Excel fictícia](docs/screenshots/08-importacao-excel.png) | ![Verificações locais e alertas com n8n desabilitado](docs/screenshots/09-automacoes-alertas.png) |
 
@@ -49,7 +49,7 @@ A priorização combina critérios explícitos de valor e esforço, preserva a p
 
 ## Stack e arquitetura
 
-Python 3.11+, Streamlit, FastAPI, SQLAlchemy 2/SQLite, Pandas, Plotly, openpyxl, Pydantic, HTTPX, Google Gen AI, Pytest, Ruff e Mypy. O fluxo é `UI → serviços → persistência → SQLite`; integrações dependem de adaptadores. Veja [arquitetura](docs/architecture.md).
+Python 3.11+, Streamlit, FastAPI, SQLAlchemy 2/SQLite, Pandas, Plotly, openpyxl, Pydantic, HTTPX, Pytest, Ruff e Mypy. O fluxo é `UI → serviços → persistência → SQLite`; integrações dependem de adaptadores. Veja [arquitetura](docs/architecture.md).
 
 ## Instalação e execução local
 
@@ -88,7 +88,7 @@ curl.exe -X POST http://127.0.0.1:8000/api/v1/automations/run -H "Authorization:
 
 ## Configuração
 
-Copie `.env.example` para `.env`. Sem chave, `AI_PROVIDER=demo` usa regras locais determinísticas e exibe **Modo demonstração local** — nenhuma chamada de IA é alegada. Para Gemini, defina `AI_PROVIDER=gemini`, `GEMINI_API_KEY` e `GEMINI_MODEL`. Falhas reais não acionam fallback silencioso.
+Copie `.env.example` para `.env`. A aplicação não utiliza IA generativa: atas e resumos executivos de reunião são registrados manualmente. A governança de **casos de uso de IA** é uma área de negócio do produto — cadastrar, avaliar e aprovar iniciativas de IA da organização — e não depende de nenhum provedor externo.
 
 n8n fica desligado por padrão. Use `docker compose --profile automation up -d n8n`, importe o workflow e siga `n8n/README.md`. A aplicação funciona integralmente sem ele.
 

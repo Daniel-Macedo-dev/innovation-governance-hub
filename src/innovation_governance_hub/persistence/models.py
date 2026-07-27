@@ -156,8 +156,6 @@ class Meeting(Base):
     participants: Mapped[str] = mapped_column(Text)
     minutes_text: Mapped[str] = mapped_column(Text)
     executive_summary: Mapped[str] = mapped_column(Text, default="")
-    summary_provider: Mapped[str] = mapped_column(String(80), default="")
-    summary_mode: Mapped[str] = mapped_column(String(30), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now, onupdate=now)
 

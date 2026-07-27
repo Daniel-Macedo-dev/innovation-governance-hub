@@ -271,8 +271,6 @@ def seed() -> dict[str, int]:
                 participants="Ana Demo; Bruno Exemplo",
                 minutes_text="Foi decidido validar o protótipo. Ana deve preparar métricas até 15/08/2026.",
                 executive_summary="Validação do protótipo e definição de métricas.",
-                summary_provider="Regras locais determinísticas",
-                summary_mode="Modo demonstração local",
             )
             session.add(meeting)
             session.flush()

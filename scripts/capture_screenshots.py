@@ -51,7 +51,6 @@ def isolated_environment(root: Path) -> dict[str, str]:
     environment.update(
         APP_ENV="screenshot",
         DATABASE_URL="sqlite:///data/screenshots_demo.db",
-        AI_PROVIDER="demo",
         N8N_ENABLED="false",
         PYTHONUTF8="1",
     )
@@ -145,9 +144,7 @@ def _create_import_file(path: Path) -> None:
 
 
 def _prepare_timeline(environment: dict[str, str]) -> None:
-    os.environ.update(
-        {key: environment[key] for key in ("APP_ENV", "DATABASE_URL", "AI_PROVIDER", "N8N_ENABLED")}
-    )
+    os.environ.update({key: environment[key] for key in ("APP_ENV", "DATABASE_URL", "N8N_ENABLED")})
     from sqlalchemy import select
 
     from innovation_governance_hub.database import SessionLocal, engine

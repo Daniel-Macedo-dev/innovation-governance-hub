@@ -5,7 +5,6 @@ DEMO_DATABASE = Path("data/interview_demo.db")
 DEMO_ENV = {
     "APP_ENV": "interview",
     "DATABASE_URL": "sqlite:///data/interview_demo.db",
-    "AI_PROVIDER": "demo",
     "N8N_ENABLED": "false",
     "INTERVIEW_GUIDE_ENABLED": "true",
     "DEMO_REFERENCE_DATE": "2026-07-27",

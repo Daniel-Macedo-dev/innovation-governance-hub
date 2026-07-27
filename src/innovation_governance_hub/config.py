@@ -16,10 +16,6 @@ class Settings(BaseSettings):
     stale_project_days: int = 14
     budget_warning_percent: int = 80
     annual_budget_warning_percent: int = 85
-    ai_provider: str = "demo"
-    gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
-    ai_request_timeout_seconds: int = 30
     integration_api_token: str = "change-me-local"
     integration_api_host: str = "0.0.0.0"
     integration_api_port: int = 8000

@@ -16,7 +16,6 @@ jobs:
     env:
       DATABASE_URL: sqlite:///data/ci.db
       UPLOAD_DIR: data/ci-uploads
-      AI_PROVIDER: demo
       N8N_ENABLED: "false"
       INTEGRATION_API_TOKEN: ci-local-token
     steps:

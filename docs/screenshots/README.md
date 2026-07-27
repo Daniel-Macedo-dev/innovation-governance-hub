@@ -10,7 +10,7 @@ Os nove arquivos PNG desta pasta são capturas reais do Streamlit em execução,
 | `04-timeline-iniciativa.png` | Eventos de iniciativa, reunião, despesa e bloqueio de gate. |
 | `05-governanca-ia.png` | Casos de IA, risco, status, adoção e revisão. |
 | `06-orcamento-projecao.png` | Planejado, realizado, comprometido, saldo e projeção simples. |
-| `07-resumo-reuniao.png` | Ata fictícia processada pelo modo demonstração local determinístico. |
+| `07-resumo-reuniao.png` | Reunião fictícia com ata e resumo executivo manual. |
 | `08-importacao-excel.png` | Upload real de XLSX, validação linha a linha e prévia sem persistência. |
 | `09-automacoes-alertas.png` | Verificações locais, severidades e n8n explicitamente desabilitado. |
 

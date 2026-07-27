@@ -34,7 +34,6 @@ def test_isolated_environment_uses_dedicated_database(tmp_path: Path) -> None:
     environment = isolated_environment(tmp_path)
     assert environment["APP_ENV"] == "screenshot"
     assert environment["DATABASE_URL"] == "sqlite:///data/screenshots_demo.db"
-    assert environment["AI_PROVIDER"] == "demo"
     assert environment["N8N_ENABLED"] == "false"
 
 

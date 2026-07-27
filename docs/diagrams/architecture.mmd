@@ -3,9 +3,5 @@ flowchart TD
   API[FastAPI integrações] --> S
   S --> R[SQLAlchemy / repositórios]
   R --> DB[(SQLite WAL)]
-  S --> AI{Provedor de atas}
-  AI --> Demo[Regras locais]
-  AI --> Gemini[Gemini opcional]
-  S --> N8N[n8n opcional]
   S --> XLSX[Excel]
-
+  S -.-> N8N[n8n opcional futuro]

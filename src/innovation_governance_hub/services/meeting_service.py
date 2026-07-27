@@ -2,7 +2,6 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
-from innovation_governance_hub.domain.schemas import MeetingSummaryResult
 from innovation_governance_hub.exceptions import ValidationError
 from innovation_governance_hub.persistence.models import (
     ActionItem,
@@ -24,7 +23,7 @@ class MeetingService:
         meeting_date: date,
         participants: str,
         minutes_text: str,
-        summary: MeetingSummaryResult,
+        executive_summary: str,
         decisions: list[str],
         actions: list[dict[str, object]],
         actor: str = "Sistema",
@@ -39,9 +38,7 @@ class MeetingService:
             meeting_date=meeting_date,
             participants=participants.strip(),
             minutes_text=minutes_text.strip(),
-            executive_summary=summary.executive_summary.strip(),
-            summary_provider=summary.provider_name,
-            summary_mode=summary.mode,
+            executive_summary=executive_summary.strip(),
         )
         self.session.add(meeting)
         self.session.flush()
@@ -79,7 +76,6 @@ class MeetingService:
                 "meeting_id": meeting.id,
                 "decision_count": len(decisions),
                 "action_count": len(actions),
-                "summary_mode": meeting.summary_mode,
             },
         )
         return meeting

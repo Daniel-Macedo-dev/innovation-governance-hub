@@ -3,17 +3,6 @@ from datetime import date
 from pydantic import BaseModel, Field
 
 
-class MeetingSummaryResult(BaseModel):
-    executive_summary: str
-    decisions: list[str] = []
-    action_items: list[str] = []
-    next_steps: list[str] = []
-    mentioned_people: list[str] = []
-    mentioned_deadlines: list[str] = []
-    provider_name: str
-    mode: str
-
-
 class Alert(BaseModel):
     notification_type: str
     severity: str
