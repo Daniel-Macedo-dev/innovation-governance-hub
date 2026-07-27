@@ -70,7 +70,7 @@ python -m scripts.prepare_interview_demo
 python -m scripts.run_interview_demo
 ```
 
-Esse modo usa somente `data/interview_demo.db`, data de negócio fixa em `2026-07-27`, IA local demonstrativa e n8n desligado. Não altera `.env` nem o banco principal.
+O cenário reproduzível inicia a **mesma aplicação completa** (`app.py`, todas as páginas e regras) e abre no Comitê de Inovação. As únicas diferenças em relação ao uso normal são o banco isolado `data/interview_demo.db`, a data de referência fixa `2026-07-27` e um guia visual opcional na barra lateral. Não altera `.env` nem o banco principal.
 
 API em outro terminal:
 
