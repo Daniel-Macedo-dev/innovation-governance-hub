@@ -5,7 +5,7 @@ Os onze arquivos PNG desta pasta são capturas reais do Streamlit em execução,
 | Arquivo | Evidência apresentada |
 | --- | --- |
 | `00-comite-inovacao.png` | Comitê com decisões requeridas, saúde do portfólio e síntese executiva. |
-| `01-dashboard-executivo.png` | Indicadores executivos e distribuição do portfólio por estágio. |
+| `01-dashboard-executivo.png` | Indicadores do portfólio, projetos ativos e dentro do prazo por área e distribuição por estágio. |
 | `02-funil-inovacao.png` | Iniciativas, estágio, status, prazo e posição financeira. |
 | `03-gate-bloqueado.png` | Tentativa real de avanço impedida por critérios pendentes. |
 | `04-timeline-iniciativa.png` | Eventos de iniciativa, reunião, despesa e bloqueio de gate. |

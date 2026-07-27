@@ -1,7 +1,10 @@
 # Definições das métricas
 
-- **Projeto ativo:** não está Concluída nem Arquivada.
-- **Atrasado:** ativo e prazo anterior à data atual.
+- **Projeto ativo:** iniciativa que não está Concluída nem Arquivada.
+- **Atrasado:** ativo e prazo anterior à data de negócio.
+- **Projetos ativos por área:** quantidade de iniciativas ativas cuja área solicitante é a informada; iniciativas ativas sem área aparecem em "Área não informada".
+- **Projetos dentro do prazo por área:** iniciativas ativas da área com prazo igual ou posterior à data de negócio ÷ total de iniciativas ativas da área × 100. Prazo igual à data de negócio conta como dentro do prazo; prazo anterior é atraso; prazo futuro é dentro do prazo; iniciativa sem prazo permanece no total de ativas, aparece separadamente como "Sem prazo" e reduz o percentual, porque o cumprimento não pode ser comprovado. Área sem iniciativas ativas retorna zero e não é exibida.
+- **Data de negócio:** data de referência das regras de prazo (`DEMO_REFERENCE_DATE` quando definida; caso contrário, a data atual). Os carimbos de auditoria continuam usando o relógio real.
 - **Parado:** ativo sem atividade por pelo menos `STALE_PROJECT_DAYS` (14 por padrão).
 - **Taxa de avanço:** avanços bem-sucedidos / tentativas de avanço × 100; arquivamentos excluídos e ausência retorna zero.
 - **Tempo médio em estágio:** intervalo entre entrada e saída; estágio aberto vai até hoje.

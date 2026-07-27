@@ -36,7 +36,7 @@ As imagens são capturas automatizadas da aplicação Streamlit real. Consulte [
 
 ## Funcionalidades
 
-- Dashboard executivo com indicadores, gráficos e listas de atenção.
+- Visão Geral com indicadores do portfólio, volume de projetos ativos por área, percentual dentro do prazo por área e distribuição por estágio.
 - Funil sequencial com critérios automáticos, manuais e aprovações; tentativas bloqueadas são auditadas.
 - Documentos locais, reuniões com ata e resumo executivo manual, decisões, pendências e linha do tempo imutável de eventos relevantes.
 - Casos de IA com histórico decisório, justificativas, restrições, adoção e próxima revisão — governança de iniciativas de IA, sem executar IA no produto.
