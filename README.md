@@ -4,7 +4,23 @@
 
 > Este projeto utiliza exclusivamente dados fictícios e foi desenvolvido para fins educacionais e de portfólio. Não representa processos, políticas, resultados ou informações internas de nenhuma empresa real.
 
-Aplicação local multipage para demonstrar gestão de iniciativas, gates, governança de IA, orçamento, reuniões, documentos, Excel e automações na empresa fictícia **Horizonte Operações Integradas**. O espaço para screenshots e o checklist de captura estão em `docs/screenshots/README.md`; nenhuma imagem inexistente é apresentada como pronta.
+Aplicação local multipage para demonstrar gestão de iniciativas, gates, governança de IA, orçamento, reuniões, documentos, Excel e automações na empresa fictícia **Horizonte Operações Integradas**.
+
+![Dashboard executivo do Innovation Governance Hub](docs/screenshots/01-dashboard-executivo.png)
+
+## Demonstração visual
+
+| Funil de inovação | Governança de IA |
+| --- | --- |
+| ![Funil de inovação com iniciativas fictícias em diferentes estágios](docs/screenshots/02-funil-inovacao.png) | ![Governança de IA com casos fictícios, riscos e status](docs/screenshots/05-governanca-ia.png) |
+| Gate bloqueado | Timeline da iniciativa |
+| ![Gate bloqueado por critérios pendentes](docs/screenshots/03-gate-bloqueado.png) | ![Linha do tempo auditável da iniciativa](docs/screenshots/04-timeline-iniciativa.png) |
+| Orçamento e projeção | Reunião e resumo local |
+| ![Orçamento anual, compromissos e projeção simples](docs/screenshots/06-orcamento-projecao.png) | ![Ata fictícia resumida em modo demonstração local](docs/screenshots/07-resumo-reuniao.png) |
+| Importação Excel | Automações e alertas |
+| ![Prévia validada de uma importação Excel fictícia](docs/screenshots/08-importacao-excel.png) | ![Verificações locais e alertas com n8n desabilitado](docs/screenshots/09-automacoes-alertas.png) |
+
+As imagens são capturas automatizadas da aplicação Streamlit real. Consulte [como reproduzir as capturas](docs/screenshots/README.md).
 
 ## Funcionalidades
 
@@ -64,6 +80,13 @@ mypy src
 pytest --cov=src/innovation_governance_hub/services --cov=src/innovation_governance_hub/domain --cov-report=term-missing
 docker compose config
 docker compose up --build app api
+```
+
+Capturas locais opcionais, sem adicionar navegador às dependências de produção ou ao CI:
+
+```powershell
+python -m pip install -e ".[dev,screenshots]"
+python -m scripts.capture_screenshots
 ```
 
 Na página Excel, baixe modelos gerados por código, escolha iniciativas ou custos, valide a planilha, revise a prévia e confirme a transação. Linhas inválidas impedem toda a persistência e produzem relatório XLSX de erros. O MVP não usa locale global e apresenta moeda/data em pt-BR.
