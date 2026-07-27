@@ -38,6 +38,19 @@ class NotificationService:
         self._audit(item, actor, "ignorado" if ignored else "resolução")
         return item
 
+    def reopen(self, notification_id: int, actor: str, reason: str) -> NotificationLog:
+        if not reason.strip():
+            raise ValidationError("Reabertura exige motivo.")
+        item = self._get(notification_id)
+        if item.lifecycle_status not in {"Resolvido", "Ignorado"}:
+            raise ValidationError("Somente alertas encerrados podem ser reabertos.")
+        item.lifecycle_status = "Novo"
+        item.acknowledged_at = item.acknowledged_by = None
+        item.resolved_at = item.resolved_by = None
+        item.resolution_note = ""
+        self._audit(item, actor, "reabertura")
+        return item
+
     def register(self, **data: object) -> tuple[NotificationLog, bool]:
         fingerprint = str(data["fingerprint"])
         open_item = self.session.scalar(

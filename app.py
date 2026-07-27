@@ -1,5 +1,5 @@
 from innovation_governance_hub.ui.bootstrap import bootstrap
-from innovation_governance_hub.ui.views import overview
+from innovation_governance_hub.ui.views.overview import overview
 
 bootstrap("Visão Geral")
 overview()

@@ -21,3 +21,11 @@ def test_views_do_not_import_persistence_or_sqlalchemy():
             for name in imports
             if any(name == item or name.startswith(f"{item}.") for item in forbidden)
         ], path
+
+
+def test_legacy_views_are_gone_and_pages_use_specific_views():
+    assert not Path("src/innovation_governance_hub/ui/legacy_views.py").exists()
+    for path in [Path("app.py"), *Path("pages").glob("*.py")]:
+        source = path.read_text(encoding="utf-8")
+        assert "legacy_views" not in source
+        assert "from innovation_governance_hub.ui.views import" not in source

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
@@ -83,3 +83,61 @@ class MeetingService:
             },
         )
         return meeting
+
+    def update_action(self, action_id: int, data: dict[str, object], actor: str) -> ActionItem:
+        action = self.session.get(ActionItem, action_id)
+        if not action:
+            raise ValidationError("Pendência não encontrada.")
+        changes: dict[str, object] = {}
+        for field in ("description", "owner", "deadline", "status"):
+            if field in data and getattr(action, field) != data[field]:
+                changes[field] = {"before": getattr(action, field), "after": data[field]}
+                setattr(action, field, data[field])
+        if not action.description.strip() or not action.owner.strip():
+            raise ValidationError("Descrição e responsável são obrigatórios.")
+        if action.status == "Concluída":
+            action.completed_at = action.completed_at or datetime.now()
+        elif action.status in {"Aberta", "Em andamento"}:
+            action.completed_at = None
+        if changes:
+            AuditService(self.session).record(
+                event_type="action.updated",
+                entity_type="Iniciativa",
+                entity_id=action.initiative_id,
+                action="pendência atualizada",
+                actor=actor,
+                summary=f"Pendência '{action.description}' atualizada.",
+                changes=changes,
+                metadata={"action_id": action.id, "meeting_id": action.meeting_id},
+            )
+        return action
+
+    def cancel_action(self, action_id: int, actor: str, reason: str) -> ActionItem:
+        if not reason.strip():
+            raise ValidationError("Cancelamento exige justificativa.")
+        action = self.update_action(action_id, {"status": "Cancelada"}, actor)
+        AuditService(self.session).record(
+            event_type="action.cancelled",
+            entity_type="Iniciativa",
+            entity_id=action.initiative_id,
+            action="pendência cancelada",
+            actor=actor,
+            summary=f"Pendência '{action.description}' cancelada.",
+            metadata={"action_id": action.id, "reason": reason.strip()},
+        )
+        return action
+
+    def reopen_action(self, action_id: int, actor: str, reason: str) -> ActionItem:
+        if not reason.strip():
+            raise ValidationError("Reabertura exige motivo.")
+        action = self.update_action(action_id, {"status": "Aberta"}, actor)
+        AuditService(self.session).record(
+            event_type="action.reopened",
+            entity_type="Iniciativa",
+            entity_id=action.initiative_id,
+            action="pendência reaberta",
+            actor=actor,
+            summary=f"Pendência '{action.description}' reaberta.",
+            metadata={"action_id": action.id, "reason": reason.strip()},
+        )
+        return action
