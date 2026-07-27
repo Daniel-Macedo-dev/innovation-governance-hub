@@ -1,0 +1,15 @@
+{
+  "name": "Innovation Governance Automation",
+  "active": false,
+  "nodes": [
+    {"parameters":{"httpMethod":"POST","path":"innovation-governance-alerts","responseMode":"onReceived"},"id":"webhook","name":"Receber alertas","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[0,0]},
+    {"parameters":{"rule":{"interval":[{"field":"weeks","triggerAtDay":[1],"triggerAtHour":9}]}},"id":"schedule","name":"Resumo semanal","type":"n8n-nodes-base.scheduleTrigger","typeVersion":1.2,"position":[0,200]},
+    {"parameters":{"url":"={{$env.HUB_API_URL || 'http://api:8000'}}/api/v1/automations/weekly-summary","options":{}},"id":"summary","name":"Consultar resumo","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[240,200]},
+    {"parameters":{"assignments":{"assignments":[{"id":"format","name":"resumo","value":"={{ JSON.stringify($json) }}","type":"string"}]}},"id":"format","name":"Formatar conteúdo","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[480,100]},
+    {"parameters":{},"id":"noop","name":"Entrega opcional — configure e-mail","type":"n8n-nodes-base.noOp","typeVersion":1,"position":[720,100]}
+  ],
+  "connections":{"Receber alertas":{"main":[[{"node":"Formatar conteúdo","type":"main","index":0}]]},"Resumo semanal":{"main":[[{"node":"Consultar resumo","type":"main","index":0}]]},"Consultar resumo":{"main":[[{"node":"Formatar conteúdo","type":"main","index":0}]]},"Formatar conteúdo":{"main":[[{"node":"Entrega opcional — configure e-mail","type":"main","index":0}]]}},
+  "settings":{"executionOrder":"v1"},
+  "versionId":"00000000-0000-4000-8000-000000000001"
+}
+

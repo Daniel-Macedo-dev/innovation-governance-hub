@@ -1,0 +1,14 @@
+sequenceDiagram
+  actor U as Usuário/Agendador
+  participant A as AutomationService
+  participant D as SQLite
+  participant N as n8n opcional
+  U->>A: Executar verificações
+  A->>D: Ler entidades e persistir fingerprints
+  A-->>U: Alertas locais
+  opt N8N habilitado
+    A->>N: Payload com timeout
+    N-->>A: Resultado/callback
+    A->>D: Registrar entrega
+  end
+

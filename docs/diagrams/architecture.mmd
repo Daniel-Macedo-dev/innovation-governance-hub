@@ -1,0 +1,11 @@
+flowchart TD
+  UI[Streamlit multipage] --> S[Serviços de aplicação]
+  API[FastAPI integrações] --> S
+  S --> R[SQLAlchemy / repositórios]
+  R --> DB[(SQLite WAL)]
+  S --> AI{Provedor de atas}
+  AI --> Demo[Regras locais]
+  AI --> Gemini[Gemini opcional]
+  S --> N8N[n8n opcional]
+  S --> XLSX[Excel]
+

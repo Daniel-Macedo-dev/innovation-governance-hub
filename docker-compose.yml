@@ -1,0 +1,38 @@
+services:
+  app:
+    build: .
+    command: streamlit run app.py --server.address=0.0.0.0
+    ports: ["8501:8501"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+    volumes: ["hub-data:/app/data", "hub-templates:/app/templates"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+  api:
+    build: .
+    command: uvicorn api:app --host 0.0.0.0 --port 8000
+    ports: ["8000:8000"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+    volumes: ["hub-data:/app/data"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+  n8n:
+    image: n8nio/n8n:latest
+    profiles: ["automation"]
+    ports: ["5678:5678"]
+    environment:
+      N8N_HOST: 0.0.0.0
+      N8N_PORT: 5678
+      WEBHOOK_URL: http://localhost:5678/
+    volumes: ["n8n-data:/home/node/.n8n"]
+volumes:
+  hub-data:
+  hub-templates:
+  n8n-data:
