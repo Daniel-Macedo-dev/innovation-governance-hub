@@ -12,7 +12,7 @@ Os nove arquivos PNG desta pasta são capturas reais do Streamlit em execução,
 | `06-orcamento-projecao.png` | Planejado, realizado, comprometido, saldo e projeção simples. |
 | `07-resumo-reuniao.png` | Reunião fictícia com ata e resumo executivo manual. |
 | `08-importacao-excel.png` | Upload real de XLSX, validação linha a linha e prévia sem persistência. |
-| `09-automacoes-alertas.png` | Verificações locais, severidades e n8n explicitamente desabilitado. |
+| `09-automacoes-alertas.png` | Verificações internas, severidades e ciclo de vida dos alertas. |
 
 ## Reproduzir
 

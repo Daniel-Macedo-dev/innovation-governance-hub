@@ -30,7 +30,7 @@ O **Comitê de Inovação** consolida o que requer decisão, a saúde explicáve
 | Orçamento e projeção | Reunião e resumo local |
 | ![Orçamento anual, compromissos e projeção simples](docs/screenshots/06-orcamento-projecao.png) | ![Reunião fictícia com resumo executivo manual](docs/screenshots/07-resumo-reuniao.png) |
 | Importação Excel | Automações e alertas |
-| ![Prévia validada de uma importação Excel fictícia](docs/screenshots/08-importacao-excel.png) | ![Verificações locais e alertas com n8n desabilitado](docs/screenshots/09-automacoes-alertas.png) |
+| ![Prévia validada de uma importação Excel fictícia](docs/screenshots/08-importacao-excel.png) | ![Verificações internas e ciclo de vida de alertas](docs/screenshots/09-automacoes-alertas.png) |
 
 As imagens são capturas automatizadas da aplicação Streamlit real. Consulte [como reproduzir as capturas](docs/screenshots/README.md).
 
@@ -90,7 +90,9 @@ curl.exe -X POST http://127.0.0.1:8000/api/v1/automations/run -H "Authorization:
 
 Copie `.env.example` para `.env`. A aplicação não utiliza IA generativa: atas e resumos executivos de reunião são registrados manualmente. A governança de **casos de uso de IA** é uma área de negócio do produto — cadastrar, avaliar e aprovar iniciativas de IA da organização — e não depende de nenhum provedor externo.
 
-n8n fica desligado por padrão. Use `docker compose --profile automation up -d n8n`, importe o workflow e siga `n8n/README.md`. A aplicação funciona integralmente sem ele.
+### Possíveis integrações futuras
+
+O diretório `n8n/` guarda uma prova de conceito isolada de encaminhamento externo de alertas. Ela não faz parte do fluxo principal: a aplicação funciona integralmente sem n8n, Docker ou credenciais externas, e a interface nunca chama webhooks. Detalhes em `n8n/README.md`.
 
 ## Operação e qualidade
 

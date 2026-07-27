@@ -2,16 +2,15 @@ from datetime import date, timedelta
 
 import streamlit as st
 
-from innovation_governance_hub.config import get_settings
 from innovation_governance_hub.exceptions import DomainError
 from innovation_governance_hub.ui.context import app_services
 from innovation_governance_hub.ui.navigation import AI_CASE, INITIATIVE, go
 
 
 def automations() -> None:
-    settings = get_settings()
-    st.info(
-        f"n8n {'habilitado' if settings.n8n_enabled else 'desabilitado'} — verificações locais disponíveis"
+    st.caption(
+        "Verificações internas calculam alertas de prazo, orçamento, gates, governança de IA e pendências. "
+        "A execução é sempre explícita: abrir dashboards não gera nem altera alertas."
     )
     if st.button("Executar verificações"):
         with app_services() as services:
@@ -91,4 +90,6 @@ def automations() -> None:
                 "Abrir caso de IA", key=f"alert_ai_{item['id']}"
             ):
                 go(AI_CASE, int(str(item["entity_id"])))
-    st.caption("Nenhum alerta é apagado e o n8n nunca é chamado automaticamente.")
+    st.caption(
+        "Nenhum alerta é apagado: resolução, descarte e reabertura ficam registrados na auditoria."
+    )
