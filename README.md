@@ -1,5 +1,7 @@
 # Innovation Governance Hub
 
+[![Python quality](https://github.com/Daniel-Macedo-dev/innovation-governance-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/Daniel-Macedo-dev/innovation-governance-hub/actions/workflows/ci.yml)
+
 > Este projeto utiliza exclusivamente dados fictícios e foi desenvolvido para fins educacionais e de portfólio. Não representa processos, políticas, resultados ou informações internas de nenhuma empresa real.
 
 Aplicação local multipage para demonstrar gestão de iniciativas, gates, governança de IA, orçamento, reuniões, documentos, Excel e automações na empresa fictícia **Horizonte Operações Integradas**. O espaço para screenshots e o checklist de captura estão em `docs/screenshots/README.md`; nenhuma imagem inexistente é apresentada como pronta.
