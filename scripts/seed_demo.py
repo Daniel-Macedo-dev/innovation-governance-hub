@@ -50,6 +50,33 @@ NAMES = [
     "Consolidação automática de relatórios",
 ]
 AREAS = ["Operações", "Pessoas", "Financeiro", "Logística", "Suprimentos", "Tecnologia"]
+# Composição fictícia do portfólio: área solicitante por iniciativa (INI-001..INI-020).
+# A distribuição é apenas massa demonstrativa; nenhuma regra da aplicação depende dela.
+AREA_BY_INDEX = (
+    "Operações",  # 1
+    "Pessoas",  # 2
+    "Financeiro",  # 3
+    "Logística",  # 4
+    "Operações",  # 5
+    "Suprimentos",  # 6
+    "Tecnologia",  # 7
+    "Logística",  # 8
+    "Operações",  # 9
+    "Pessoas",  # 10
+    "Financeiro",  # 11
+    "Logística",  # 12
+    "Operações",  # 13
+    "Tecnologia",  # 14
+    "Financeiro",  # 15
+    "Pessoas",  # 16
+    "Operações",  # 17
+    "Pessoas",  # 18
+    "Financeiro",  # 19
+    "Suprimentos",  # 20
+)
+# Prazos fictícios: algumas iniciativas ativas vencidas e uma sem prazo definido.
+OVERDUE_INDEXES = {1, 5}
+NO_DEADLINE_INDEXES = {19}
 
 
 def seed() -> dict[str, int]:
@@ -103,15 +130,17 @@ def seed() -> dict[str, int]:
                         name=name,
                         problem_description="Processo manual com retrabalho e baixa visibilidade.",
                         proposed_solution="Experimentar solução digital com métricas de sucesso.",
-                        requesting_area=AREAS[(idx - 1) % len(AREAS)],
+                        requesting_area=AREA_BY_INDEX[idx - 1],
                         owner=f"Pessoa Fictícia {idx}",
                         priority=["Baixa", "Média", "Alta", "Crítica"][idx % 4],
                         expected_impact_level=["Baixo", "Médio", "Alto", "Muito alto"][idx % 4],
                         expected_impact_description="Reduzir tempo operacional em cenário demonstrativo.",
                         complexity=["Baixa", "Média", "Alta"][idx % 3],
                         created_date=business_date() - timedelta(days=150 + idx),
-                        deadline=business_date() - timedelta(days=idx)
-                        if idx % 4 == 0
+                        deadline=None
+                        if idx in NO_DEADLINE_INDEXES
+                        else business_date() - timedelta(days=idx)
+                        if idx in OVERDUE_INDEXES
                         else business_date() + timedelta(days=30 + idx),
                         status=status,
                         current_stage=stage,
@@ -168,31 +197,6 @@ def seed() -> dict[str, int]:
         for idx in range(1, 13):
             code = f"IA-{idx:03d}"
             if not session.scalar(select(AIUseCase).where(AIUseCase.code == code)):
-                if idx == 7:
-                    session.add(
-                        AIUseCase(
-                            code=code,
-                            name="Assistente de propostas comerciais",
-                            responsible_area="Suprimentos",
-                            objective="Acelerar a elaboração de propostas com apoio de IA.",
-                            ai_tool="Assistente Fictício 7",
-                            model_or_provider="Provedor em avaliação",
-                            data_description="Histórico de propostas e dados de clientes fictícios.",
-                            uses_personal_data=True,
-                            risk_level=RiskLevel.HIGH,
-                            risk_mitigation="Plano de mitigação em elaboração pela área.",
-                            expected_impact="Redução do tempo de resposta comercial.",
-                            evaluation_status=AIStatus.EVALUATING,
-                            owner="Responsável IA 7",
-                            next_review_date=business_date() + timedelta(days=21),
-                            policy_accepted=False,
-                            governance_approved=False,
-                            estimated_users=180,
-                            active_users=142,
-                            notes="Dados fictícios de acompanhamento do ciclo de avaliação.",
-                        )
-                    )
-                    continue
                 risk = [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.CRITICAL][
                     idx % 4
                 ]
