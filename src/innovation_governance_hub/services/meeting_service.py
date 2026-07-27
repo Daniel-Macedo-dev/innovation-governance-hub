@@ -10,6 +10,7 @@ from innovation_governance_hub.persistence.models import (
     Meeting,
     MeetingDecision,
 )
+from innovation_governance_hub.services.audit_service import AuditService
 
 
 class MeetingService:
@@ -26,6 +27,7 @@ class MeetingService:
         summary: MeetingSummaryResult,
         decisions: list[str],
         actions: list[dict[str, object]],
+        actor: str = "Sistema",
     ) -> Meeting:
         if not self.session.get(Initiative, initiative_id):
             raise ValidationError("Iniciativa não encontrada.")
@@ -66,4 +68,18 @@ class MeetingService:
                     status="Aberta",
                 )
             )
+        AuditService(self.session).record(
+            event_type="meeting.created",
+            entity_type="Iniciativa",
+            entity_id=initiative_id,
+            action="registro de reunião",
+            actor=actor,
+            summary=f"Reunião {meeting.title} registrada.",
+            metadata={
+                "meeting_id": meeting.id,
+                "decision_count": len(decisions),
+                "action_count": len(actions),
+                "summary_mode": meeting.summary_mode,
+            },
+        )
         return meeting

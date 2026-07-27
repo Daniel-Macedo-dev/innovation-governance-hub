@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from innovation_governance_hub.config import Settings, get_settings
 from innovation_governance_hub.exceptions import ValidationError
 from innovation_governance_hub.persistence.models import Initiative, InitiativeDocument
+from innovation_governance_hub.services.audit_service import AuditService
 
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".xlsx", ".png", ".jpg", ".jpeg", ".txt"}
 MAX_SIZE_BYTES = 10 * 1024 * 1024
@@ -56,9 +57,18 @@ class DocumentService:
         )
         self.session.add(document)
         self.session.flush()
+        AuditService(self.session).record(
+            event_type="document.uploaded",
+            entity_type="Iniciativa",
+            entity_id=initiative_id,
+            action="upload de documento",
+            actor=actor,
+            summary=f"Documento {safe_original} enviado.",
+            metadata={"document_id": document.id, "document_type": document.document_type},
+        )
         return document
 
-    def delete(self, document_id: int) -> None:
+    def delete(self, document_id: int, actor: str = "Sistema") -> None:
         document = self.session.get(InitiativeDocument, document_id)
         if not document:
             raise ValidationError("Documento não encontrado.")
@@ -68,4 +78,13 @@ class DocumentService:
             raise ValidationError("O arquivo não pertence ao diretório de uploads.")
         if target.exists():
             target.unlink()
+        AuditService(self.session).record(
+            event_type="document.removed",
+            entity_type="Iniciativa",
+            entity_id=document.initiative_id,
+            action="remoção de documento",
+            actor=actor,
+            summary=f"Documento {document.original_filename} removido.",
+            metadata={"document_id": document.id, "document_type": document.document_type},
+        )
         self.session.delete(document)
