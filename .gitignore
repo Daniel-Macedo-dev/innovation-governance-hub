@@ -17,6 +17,11 @@ data/uploads/*
 !data/uploads/.gitkeep
 templates/*.xlsx
 *.log
+.playwright/
+playwright-report/
+test-results/
+browser-traces/
+screenshots-temp/
 *.tmp
 *.temp
 *.bak
