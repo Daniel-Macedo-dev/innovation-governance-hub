@@ -13,10 +13,10 @@ from innovation_governance_hub.persistence.models import (
     AIUseCase,
     AnnualBudget,
     Initiative,
-    NotificationLog,
 )
 from innovation_governance_hub.services.budget_service import BudgetService
 from innovation_governance_hub.services.gate_service import GateService
+from innovation_governance_hub.services.notification_service import NotificationService
 
 
 class AutomationService:
@@ -163,13 +163,8 @@ class AutomationService:
                 )
         if persist:
             for alert in alerts:
-                if not self.session.scalar(
-                    select(NotificationLog.id).where(
-                        NotificationLog.fingerprint == alert.fingerprint
-                    )
-                ):
-                    data = alert.model_dump(exclude={"detected_at"})
-                    self.session.add(NotificationLog(**data, detected_at=datetime.now()))
+                data = alert.model_dump(exclude={"detected_at"})
+                NotificationService(self.session).register(**data)
         return alerts
 
     def _alert(

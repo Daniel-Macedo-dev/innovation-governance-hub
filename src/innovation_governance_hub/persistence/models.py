@@ -226,7 +226,7 @@ class Expense(Base):
 class NotificationLog(Base):
     __tablename__ = "notification_logs"
     id: Mapped[int] = mapped_column(primary_key=True)
-    fingerprint: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), index=True)
     notification_type: Mapped[str] = mapped_column(String(80))
     severity: Mapped[str] = mapped_column(String(30))
     entity_type: Mapped[str] = mapped_column(String(50))
