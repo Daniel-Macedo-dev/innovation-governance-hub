@@ -23,6 +23,7 @@ from innovation_governance_hub.integrations.ai_provider_factory import create_ai
 from innovation_governance_hub.integrations.n8n_client import N8NClient
 from innovation_governance_hub.persistence.models import (
     ActionItem,
+    AIGovernanceDecision,
     AIUseCase,
     AnnualBudget,
     Expense,
@@ -32,14 +33,13 @@ from innovation_governance_hub.persistence.models import (
     InitiativeGateCheck,
     Meeting,
     NotificationLog,
-    StageTransition,
 )
 from innovation_governance_hub.services.ai_governance_service import (
     AIUseCaseService,
     adoption,
     review_overdue,
-    validate_approval,
 )
+from innovation_governance_hub.services.audit_service import AuditService
 from innovation_governance_hub.services.automation_service import AutomationService
 from innovation_governance_hub.services.budget_service import BudgetService
 from innovation_governance_hub.services.document_service import DocumentService
@@ -210,7 +210,9 @@ def initiative_details() -> None:
             st.info("Cadastre uma iniciativa no Funil.")
             return
         selected = st.selectbox("Iniciativa", items, format_func=lambda x: f"{x.code} — {x.name}")
-        tabs = st.tabs(["Resumo", "Gate atual", "Documentos", "Histórico", "Reuniões", "Custos"])
+        tabs = st.tabs(
+            ["Resumo", "Gate atual", "Documentos", "Linha do tempo", "Reuniões", "Custos"]
+        )
         with tabs[0]:
             st.write(selected.problem_description)
             st.metric("Custo planejado", brl(selected.planned_cost))
@@ -359,19 +361,18 @@ def initiative_details() -> None:
                     except DomainError as exc:
                         st.error(str(exc))
         with tabs[3]:
-            st.dataframe(
-                [
-                    {
-                        "De": x.from_stage,
-                        "Para": x.to_stage,
-                        "Sucesso": x.successful,
-                        "Motivo": x.reason,
-                    }
-                    for x in s.scalars(
-                        select(StageTransition).where(StageTransition.initiative_id == selected.id)
-                    ).all()
-                ]
-            )
+            events = AuditService(s).timeline("Iniciativa", selected.id)
+            event_types = sorted({event.event_type for event in events})
+            chosen = st.multiselect("Tipos de evento", event_types, default=event_types)
+            newest = st.toggle("Mais recentes primeiro", value=True)
+            filtered = [event for event in events if event.event_type in chosen]
+            filtered.sort(key=lambda event: (event.occurred_at, event.id), reverse=newest)
+            if not filtered:
+                st.info("Nenhum evento registrado para os filtros selecionados.")
+            for event in filtered:
+                st.markdown(
+                    f"**{event.summary}**  \n{event.occurred_at.strftime('%d/%m/%Y %H:%M')} · {event.actor}"
+                )
         with tabs[4]:
             st.dataframe(
                 [
@@ -476,34 +477,81 @@ def ai_governance() -> None:
                 ],
                 index=0,
             )
+            justification = st.text_area("Justificativa da decisão")
+            restrictions = st.text_area("Restrições aplicáveis")
+            next_review = st.date_input(
+                "Próxima revisão", value=case.next_review_date or date.today()
+            )
             if st.button("Atualizar avaliação"):
                 try:
-                    validate_approval(case, target)
-                    case.evaluation_status = target
+                    values = {
+                        column.name: getattr(case, column.name)
+                        for column in AIUseCase.__table__.columns
+                        if column.name not in {"id", "created_at", "updated_at"}
+                    }
+                    values.update(
+                        evaluation_status=target,
+                        next_review_date=next_review,
+                        actor="Usuário local",
+                        justification=justification,
+                        restrictions=restrictions,
+                    )
+                    AIUseCaseService(s).save(values, case.id)
                     st.success("Avaliação atualizada.")
                 except DomainError as exc:
                     st.error(str(exc))
-            confirm = st.checkbox("Confirmar exclusão do caso", key=f"confirm-ai-{case.id}")
-            if st.button("Excluir caso de IA", disabled=not confirm):
-                AIUseCaseService(s).delete(case.id)
-                st.success("Caso excluído.")
+            decisions = s.scalars(
+                select(AIGovernanceDecision)
+                .where(AIGovernanceDecision.ai_use_case_id == case.id)
+                .order_by(AIGovernanceDecision.decided_at.desc())
+            ).all()
+            st.subheader("Histórico de decisões")
+            if decisions:
+                st.dataframe(
+                    [
+                        {
+                            "Data": item.decided_at.strftime("%d/%m/%Y %H:%M"),
+                            "De": item.previous_status or "Criação",
+                            "Para": item.new_status,
+                            "Responsável": item.responsible,
+                            "Justificativa": item.justification,
+                            "Restrições": item.restrictions or "—",
+                        }
+                        for item in decisions
+                    ],
+                    use_container_width=True,
+                )
+            else:
+                st.info("Nenhuma decisão de governança registrada.")
 
 
 def budget() -> None:
     with SessionLocal.begin() as s:
         year = st.number_input("Ano", 2020, 2100, date.today().year)
-        totals = BudgetService(s).totals(year)
+        totals = BudgetService(s).projection(year)
         for col, item in zip(
             st.columns(4),
             [
                 ("Planejado", totals["planned"]),
                 ("Realizado", totals["actual"]),
                 ("Previsto", totals["forecast"]),
-                ("Saldo", totals["balance"]),
+                ("Comprometido", totals["committed"]),
             ],
             strict=True,
         ):
             col.metric(item[0], brl(item[1]))
+        forecast_cols = st.columns(4)
+        forecast_cols[0].metric(
+            "Variação", brl(totals["variance"]), percent(totals["variance_percent"])
+        )
+        forecast_cols[1].metric("Saldo após compromissos", brl(totals["balance_after_commitments"]))
+        forecast_cols[2].metric("Projeção até dezembro", brl(totals["year_end_projection"]))
+        forecast_cols[3].metric(
+            "Média dos últimos 3 meses", brl(totals["recent_three_month_average"])
+        )
+        st.caption(
+            "Projeção simples demonstrativa: realizado + previsto cadastrado + média recente nos meses futuros."
+        )
         planned = st.number_input("Orçamento anual", min_value=0.0, value=float(totals["planned"]))
         if st.button("Salvar orçamento"):
             row = s.scalar(select(AnnualBudget).where(AnnualBudget.year == year))
