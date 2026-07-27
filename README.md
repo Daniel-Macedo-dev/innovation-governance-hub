@@ -6,6 +6,14 @@
 
 Aplicação local multipage para demonstrar gestão de iniciativas, gates, governança de IA, orçamento, reuniões, documentos, Excel e automações na empresa fictícia **Horizonte Operações Integradas**.
 
+## O que este projeto demonstra
+
+Gestão de portfólio e gates, governança responsável de IA, priorização com pesos explícitos, indicadores de resultado, controle orçamentário, interoperabilidade com Excel, automações desacopladas, arquitetura em serviços, testes automatizados e documentação de decisões e limitações.
+
+## O que a aplicação permite decidir
+
+O **Comitê de Inovação** consolida o que requer decisão, a saúde explicável do portfólio, pendências, mudanças recentes, projeção financeira, governança de IA e indicadores. Recomendações são determinísticas e nunca substituem aprovação humana.
+
 ![Dashboard executivo do Innovation Governance Hub](docs/screenshots/01-dashboard-executivo.png)
 
 ## Demonstração visual
@@ -47,6 +55,15 @@ python -m scripts.seed_demo
 python -m scripts.generate_excel_templates
 streamlit run app.py
 ```
+
+### Demonstração reproduzível para entrevista
+
+```powershell
+python -m scripts.prepare_interview_demo
+python -m scripts.run_interview_demo
+```
+
+Esse modo usa somente `data/interview_demo.db`, data de negócio fixa em `2026-07-27`, IA local demonstrativa e n8n desligado. Não altera `.env` nem o banco principal.
 
 API em outro terminal:
 
@@ -98,3 +115,5 @@ Definições completas estão em `docs/metric-definitions.md`. Código principal
 MVP local individual, sem autenticação/RBAC, migrations Alembic ou armazenamento em nuvem. SQLite/WAL é adequado à demonstração, não a alta concorrência. O seed é idempotente por códigos e descrições estáveis e não destrói alterações existentes. Casos de IA, iniciativas, despesas, documentos, reuniões e pendências possuem operações locais; exclusões destrutivas exigem confirmação na UI. Próximos passos não essenciais: autenticação, migrations e armazenamento externo.
 
 Licença MIT; consulte `LICENSE`.
+
+Documentação complementar: [estudo de caso](docs/presentation/project-case-study.md), [guia de demonstração](docs/presentation/manager-demo-guide.md), [decisões técnicas](docs/presentation/technical-decisions.md) e [limitações](docs/presentation/limitations-and-next-steps.md).

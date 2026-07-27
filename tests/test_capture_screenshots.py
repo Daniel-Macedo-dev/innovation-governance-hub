@@ -1,3 +1,4 @@
+import socket
 from pathlib import Path
 
 import pytest
@@ -5,6 +6,7 @@ import pytest
 from scripts.capture_screenshots import (
     EXPECTED_SCREENSHOTS,
     PNG_SIGNATURE,
+    available_port,
     browser_candidates,
     cleanup_temporary,
     isolated_environment,
@@ -75,3 +77,9 @@ def test_browser_fallback_order() -> None:
         ("Google Chrome", "chrome"),
         ("Chromium", None),
     )
+
+
+def test_available_port_skips_external_listener() -> None:
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 8511))
+        assert available_port() != 8511

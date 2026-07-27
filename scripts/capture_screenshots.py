@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import os
-import re
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -14,7 +14,7 @@ from typing import Any
 
 import pandas as pd
 
-PORT = 8511
+PORT_RANGE = range(8511, 8600)
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 EXPECTED_SCREENSHOTS = tuple(
     f"{index:02d}-{slug}.png"
@@ -37,6 +37,17 @@ EXPECTED_SCREENSHOTS = tuple(
 
 def project_root() -> Path:
     return Path(__file__).resolve().parents[1]
+
+
+def available_port() -> int:
+    for port in PORT_RANGE:
+        with socket.socket() as probe:
+            try:
+                probe.bind(("127.0.0.1", port))
+            except OSError:
+                continue
+            return port
+    raise RuntimeError("Nenhuma porta disponível para capturas.")
 
 
 def isolated_environment(root: Path) -> dict[str, str]:
@@ -234,28 +245,6 @@ def _stop_server(process: subprocess.Popen[bytes]) -> None:
         process.wait(timeout=5)
 
 
-def _stop_port_listener(port: int) -> None:
-    if os.name != "nt":
-        return
-    result = subprocess.run(
-        ["netstat", "-ano", "-p", "tcp"],
-        capture_output=True,
-        check=False,
-        text=True,
-        timeout=10,
-    )
-    pattern = re.compile(rf"^\s*TCP\s+\S*:{port}\s+\S+\s+LISTENING\s+(\d+)\s*$")
-    for line in result.stdout.splitlines():
-        match = pattern.match(line)
-        if match:
-            subprocess.run(
-                ["taskkill", "/PID", match.group(1), "/T", "/F"],
-                capture_output=True,
-                check=False,
-                timeout=15,
-            )
-
-
 def _wait_for_render(page: Any) -> None:
     page.get_by_test_id("stAppViewContainer").wait_for(state="visible", timeout=20_000)
     page.locator('[data-testid="stSpinner"]').wait_for(state="hidden", timeout=20_000)
@@ -267,8 +256,8 @@ def _wait_for_render(page: Any) -> None:
     page.wait_for_timeout(700)
 
 
-def _navigate(page: Any, route: str, title: str) -> None:
-    page.goto(f"http://127.0.0.1:{PORT}/{route}", wait_until="domcontentloaded")
+def _navigate(page: Any, port: int, route: str, title: str) -> None:
+    page.goto(f"http://127.0.0.1:{port}/{route}", wait_until="domcontentloaded")
     page.get_by_role("heading", name=title, exact=True).wait_for(timeout=20_000)
     _wait_for_render(page)
 
@@ -287,17 +276,17 @@ def _select_initiative(page: Any, code: str) -> None:
     _wait_for_render(page)
 
 
-def _capture_pages(page: Any, root: Path, output_dir: Path) -> None:
-    page.goto(f"http://127.0.0.1:{PORT}", wait_until="domcontentloaded")
+def _capture_pages(page: Any, root: Path, output_dir: Path, port: int) -> None:
+    page.goto(f"http://127.0.0.1:{port}", wait_until="domcontentloaded")
     page.add_style_tag(
         content="*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important}"
     )
     page.get_by_role("heading", name="Visão Geral", exact=True).wait_for(timeout=20_000)
     page.locator(".js-plotly-plot").first.wait_for(state="visible", timeout=30_000)
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[0])
-    _navigate(page, "Funil_de_Inovacao", "Funil de Inovação")
+    _navigate(page, port, "Funil_de_Inovacao", "Funil de Inovação")
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[1])
-    _navigate(page, "Detalhes_da_Iniciativa", "Detalhes da Iniciativa")
+    _navigate(page, port, "Detalhes_da_Iniciativa", "Detalhes da Iniciativa")
     _select_initiative(page, "INI-003")
     page.get_by_role("tab", name="Gate atual").click()
     page.get_by_role("button", name="Tentar avançar gate").click()
@@ -308,11 +297,11 @@ def _capture_pages(page: Any, root: Path, output_dir: Path) -> None:
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[2])
     page.get_by_role("tab", name="Linha do tempo").click()
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[3])
-    _navigate(page, "Governanca_de_IA", "Governança de IA")
+    _navigate(page, port, "Governanca_de_IA", "Governança de IA")
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[4])
-    _navigate(page, "Orcamento_e_Custos", "Orçamento e Custos")
+    _navigate(page, port, "Orcamento_e_Custos", "Orçamento e Custos")
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[5])
-    _navigate(page, "Reunioes_e_Atas", "Reuniões e Atas")
+    _navigate(page, port, "Reunioes_e_Atas", "Reuniões e Atas")
     _select_initiative(page, "INI-003")
     page.get_by_label("Título", exact=True).fill("Comitê de priorização — demonstração")
     page.get_by_label("Participantes", exact=True).fill("Marina Souza; Rafael Lima")
@@ -323,13 +312,13 @@ def _capture_pages(page: Any, root: Path, output_dir: Path) -> None:
     page.get_by_role("button", name="Gerar resumo para revisão").click()
     page.get_by_text("Modo demonstração local", exact=False).wait_for(timeout=20_000)
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[6])
-    _navigate(page, "Importacao_e_Exportacao", "Importação e Exportação")
+    _navigate(page, port, "Importacao_e_Exportacao", "Importação e Exportação")
     page.locator('input[type="file"]').set_input_files(
         root / "screenshots-temp" / "iniciativas.xlsx"
     )
     page.get_by_text("Validação concluída", exact=False).wait_for(timeout=20_000)
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[7])
-    _navigate(page, "Automacoes", "Automações")
+    _navigate(page, port, "Automacoes", "Automações")
     page.get_by_role("button", name="Executar verificações").click()
     page.get_by_text("alertas detectados", exact=False).wait_for(timeout=20_000)
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[8])
@@ -348,6 +337,8 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     cleanup_temporary(root)
     environment = isolated_environment(root)
+    environment["DEMO_REFERENCE_DATE"] = "2026-07-27"
+    port = available_port()
     _run_setup(root, environment)
     _create_import_file(root / "screenshots-temp" / "iniciativas.xlsx")
     _prepare_timeline(environment)
@@ -364,7 +355,7 @@ def main() -> int:
                     "run",
                     "app.py",
                     "--server.headless=true",
-                    f"--server.port={PORT}",
+                    f"--server.port={port}",
                     "--server.address=127.0.0.1",
                     "--browser.gatherUsageStats=false",
                 ],
@@ -373,10 +364,10 @@ def main() -> int:
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
             )
-            _wait_for_server(f"http://127.0.0.1:{PORT}", server)
+            _wait_for_server(f"http://127.0.0.1:{port}", server)
             with sync_playwright() as playwright:
                 browser, browser_name = _launch_browser(playwright)
-                print(f"Navegador: {browser_name}; porta: {PORT}")
+                print(f"Navegador: {browser_name}; porta: {port}")
                 context = browser.new_context(
                     viewport={"width": 1440, "height": 1000},
                     device_scale_factor=1,
@@ -384,7 +375,7 @@ def main() -> int:
                     reduced_motion="reduce",
                 )
                 page = context.new_page()
-                _capture_pages(page, root, output_dir)
+                _capture_pages(page, root, output_dir, port)
                 context.close()
                 browser.close()
                 browser = None
@@ -408,7 +399,6 @@ def main() -> int:
                 pass
         if server is not None and server.poll() is None:
             _stop_server(server)
-        _stop_port_listener(PORT)
         cleanup_temporary(root)
 
 
