@@ -271,7 +271,7 @@ class ExecutiveCommitteeService:
         overdue: int,
         projection: dict[str, Decimal | int] | None,
     ) -> str:
-        text = f"O portfólio possui {active} iniciativa{'s' if active != 1 else ''} ativa{'s' if active != 1 else ''}. {decisions} {'exigem' if decisions != 1 else 'exige'} decisão nesta revisão. Existem {high_risk} caso{'s' if high_risk != 1 else ''} de IA de alto ou crítico risco e {overdue} revisão{'ões' if overdue != 1 else ''} vencida{'s' if overdue != 1 else ''}."
+        text = f"O portfólio possui {active} iniciativa{'s' if active != 1 else ''} ativa{'s' if active != 1 else ''}. {decisions} {'exigem' if decisions != 1 else 'exige'} decisão nesta revisão. Existem {high_risk} caso{'s' if high_risk != 1 else ''} de IA de alto ou crítico risco e {overdue} {'revisões vencidas' if overdue != 1 else 'revisão vencida'}."
         if projection and Decimal(projection["planned"]):
             percent = (
                 Decimal(projection["year_end_projection"]) / Decimal(projection["planned"]) * 100
