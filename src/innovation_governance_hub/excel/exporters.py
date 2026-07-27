@@ -1,3 +1,5 @@
+from datetime import datetime
+from decimal import Decimal
 from io import BytesIO
 from typing import Any
 
@@ -114,7 +116,9 @@ def committee_workbook(
     notice = "Dados totalmente fictícios — apoio demonstrativo; decisões permanecem humanas."
     sheets: dict[str, list[list[Any]]] = {
         "Resumo executivo": [
+            ["Métrica", "Valor"],
             ["Data da posição", brief.position_date],
+            ["Data de geração", datetime.now()],
             ["Aviso", notice],
             ["Resumo", brief.narrative],
             ["Iniciativas ativas", brief.active_initiatives],
@@ -234,6 +238,16 @@ def committee_workbook(
         for cell in sheet[1]:
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = header_fill
+        for row in sheet.iter_rows(min_row=2):
+            for cell in row:
+                if isinstance(cell.value, datetime):
+                    cell.number_format = "dd/mm/yyyy hh:mm"
+                elif getattr(cell.value, "year", None) and getattr(cell.value, "day", None):
+                    cell.number_format = "dd/mm/yyyy"
+        if title == "Orçamento":
+            for cell in sheet["B"][1:]:
+                if isinstance(cell.value, (int, float, Decimal)):
+                    cell.number_format = "R$ #,##0.00"
         for column in range(1, sheet.max_column + 1):
             values = [
                 len(str(sheet.cell(row, column).value or "")) for row in range(1, sheet.max_row + 1)
