@@ -1,9 +1,10 @@
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from innovation_governance_hub.domain.clock import business_date
 from innovation_governance_hub.exceptions import ValidationError
 from innovation_governance_hub.persistence.models import Initiative
 from innovation_governance_hub.services.audit_service import AuditService
@@ -23,7 +24,7 @@ class InitiativeService:
         )
         values = self._validate(data)
         values.setdefault("code", f"INI-{highest + 1:03d}")
-        values.setdefault("created_date", date.today())
+        values.setdefault("created_date", business_date())
         values.setdefault("status", "Ativa")
         values.setdefault("current_stage", "Ideia")
         values.setdefault("expected_benefit", Decimal("0"))

@@ -4,6 +4,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from innovation_governance_hub.domain.clock import business_date
 from innovation_governance_hub.domain.enums import FinancialStatus
 from innovation_governance_hub.exceptions import ValidationError
 from innovation_governance_hub.persistence.models import AnnualBudget, Expense, Initiative
@@ -45,7 +46,7 @@ class BudgetService:
         }
 
     def projection(self, year: int, as_of: date | None = None) -> dict[str, Decimal | int]:
-        reference = as_of or date.today()
+        reference = as_of or business_date()
         totals = self.totals(year)
         actual_rows = list(
             self.session.execute(

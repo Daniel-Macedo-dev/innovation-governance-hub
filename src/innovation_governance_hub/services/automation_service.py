@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from innovation_governance_hub.automation.fingerprints import fingerprint
 from innovation_governance_hub.config import Settings, get_settings
+from innovation_governance_hub.domain.clock import business_date
 from innovation_governance_hub.domain.enums import AIStatus, InitiativeStatus, RiskLevel
 from innovation_governance_hub.domain.schemas import Alert
 from innovation_governance_hub.persistence.models import (
@@ -31,7 +32,7 @@ class AutomationService:
             )
         ).all()
         for item in active:
-            if item.deadline and item.deadline < date.today():
+            if item.deadline and item.deadline < business_date():
                 alerts.append(
                     self._alert(
                         "projeto_atrasado",
@@ -104,7 +105,7 @@ class AutomationService:
                     )
                 )
         for use_case in self.session.scalars(select(AIUseCase)).all():
-            if use_case.next_review_date and use_case.next_review_date < date.today():
+            if use_case.next_review_date and use_case.next_review_date < business_date():
                 alerts.append(
                     self._alert(
                         "revisao_ia_vencida",
@@ -131,7 +132,7 @@ class AutomationService:
                 )
         for action in self.session.scalars(
             select(ActionItem).where(
-                ActionItem.deadline < date.today(),
+                ActionItem.deadline < business_date(),
                 ActionItem.status.in_(["Aberta", "Em andamento"]),
             )
         ).all():
@@ -146,7 +147,7 @@ class AutomationService:
                 )
             )
         annual_budget = self.session.scalar(
-            select(AnnualBudget).where(AnnualBudget.year == date.today().year)
+            select(AnnualBudget).where(AnnualBudget.year == business_date().year)
         )
         if annual_budget:
             totals = BudgetService(self.session).totals(annual_budget.year)

@@ -1,3 +1,4 @@
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
@@ -26,6 +27,8 @@ class Settings(BaseSettings):
     n8n_webhook_url: str = ""
     n8n_callback_token: str = ""
     n8n_request_timeout_seconds: int = 10
+    demo_reference_date: date | None = None
+    interview_guide_enabled: bool = False
 
 
 @lru_cache

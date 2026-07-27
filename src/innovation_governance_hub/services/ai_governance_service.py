@@ -1,8 +1,7 @@
-from datetime import date
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from innovation_governance_hub.domain.clock import business_date
 from innovation_governance_hub.domain.enums import AIStatus, RiskLevel
 from innovation_governance_hub.exceptions import ValidationError
 from innovation_governance_hub.persistence.models import AIGovernanceDecision, AIUseCase
@@ -37,7 +36,7 @@ def validate_approval(use_case: AIUseCase, target: str) -> None:
 
 
 def review_overdue(use_case: AIUseCase) -> bool:
-    return bool(use_case.next_review_date and use_case.next_review_date < date.today())
+    return bool(use_case.next_review_date and use_case.next_review_date < business_date())
 
 
 class AIUseCaseService:
