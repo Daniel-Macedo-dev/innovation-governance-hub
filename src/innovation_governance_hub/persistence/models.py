@@ -226,7 +226,7 @@ class Expense(Base):
 class NotificationLog(Base):
     __tablename__ = "notification_logs"
     id: Mapped[int] = mapped_column(primary_key=True)
-    fingerprint: Mapped[str] = mapped_column(String(64), index=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     notification_type: Mapped[str] = mapped_column(String(80))
     severity: Mapped[str] = mapped_column(String(30))
     entity_type: Mapped[str] = mapped_column(String(50))
@@ -261,3 +261,13 @@ class AuditEvent(Base):
     changes_json: Mapped[str] = mapped_column(Text, default="{}")
     metadata_json: Mapped[str] = mapped_column(Text, default="{}")
     occurred_at: Mapped[datetime] = mapped_column(DateTime, default=now, index=True)
+
+
+class ImportBatch(Base):
+    __tablename__ = "import_batches"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    import_type: Mapped[str] = mapped_column(String(30), index=True)
+    row_count: Mapped[int] = mapped_column(Integer)
+    imported_by: Mapped[str] = mapped_column(String(120))
+    imported_at: Mapped[datetime] = mapped_column(DateTime, default=now)

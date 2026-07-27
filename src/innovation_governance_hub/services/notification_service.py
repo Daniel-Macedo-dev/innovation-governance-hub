@@ -55,10 +55,18 @@ class NotificationService:
             .where(NotificationLog.fingerprint == fingerprint)
             .order_by(NotificationLog.id.desc())
         )
+        if previous:
+            previous.lifecycle_status = "Novo"
+            previous.detected_at = datetime.now()
+            previous.acknowledged_at = previous.acknowledged_by = None
+            previous.resolved_at = previous.resolved_by = None
+            previous.resolution_note = ""
+            self._audit(previous, "Sistema", "reabertura")
+            return previous, True
         item = NotificationLog(**data, detected_at=datetime.now(), lifecycle_status="Novo")
         self.session.add(item)
         self.session.flush()
-        self._audit(item, "Sistema", "reabertura" if previous else "detecção")
+        self._audit(item, "Sistema", "detecção")
         return item, True
 
     def _get(self, notification_id: int) -> NotificationLog:

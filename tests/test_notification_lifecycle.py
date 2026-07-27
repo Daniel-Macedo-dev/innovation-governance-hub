@@ -30,8 +30,8 @@ def test_alert_lifecycle_deduplicates_open_and_reopens_closed(session):
         service.close(first.id, "Daniel", "")
     service.close(first.id, "Daniel", "Condição tratada")
     reopened, created = service.register(**alert())
-    assert created and reopened.id != first.id and reopened.lifecycle_status == "Novo"
-    assert session.scalar(select(func.count()).select_from(NotificationLog)) == 2
+    assert created and reopened.id == first.id and reopened.lifecycle_status == "Novo"
+    assert session.scalar(select(func.count()).select_from(NotificationLog)) == 1
     assert session.scalar(select(func.count()).select_from(AuditEvent)) == 4
 
 

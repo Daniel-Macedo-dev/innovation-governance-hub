@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from pathlib import Path
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Engine, create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from innovation_governance_hub.config import get_settings
@@ -34,7 +34,24 @@ SessionLocal = sessionmaker(engine, expire_on_commit=False)
 def init_db(target: Engine | None = None) -> None:
     from innovation_governance_hub.persistence import models  # noqa: F401
 
-    Base.metadata.create_all(target or engine)
+    selected = target or engine
+    Base.metadata.create_all(selected)
+    if selected.dialect.name == "sqlite" and inspect(selected).has_table("notification_logs"):
+        existing = {column["name"] for column in inspect(selected).get_columns("notification_logs")}
+        additions = {
+            "lifecycle_status": "VARCHAR(30) NOT NULL DEFAULT 'Novo'",
+            "acknowledged_at": "DATETIME",
+            "acknowledged_by": "VARCHAR(120)",
+            "resolved_at": "DATETIME",
+            "resolved_by": "VARCHAR(120)",
+            "resolution_note": "TEXT NOT NULL DEFAULT ''",
+        }
+        with selected.begin() as connection:
+            for name, definition in additions.items():
+                if name not in existing:
+                    connection.execute(
+                        text(f"ALTER TABLE notification_logs ADD COLUMN {name} {definition}")
+                    )
 
 
 def session_scope() -> Generator[Session, None, None]:

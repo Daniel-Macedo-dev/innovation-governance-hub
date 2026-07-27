@@ -29,12 +29,12 @@ def test_health():
 
 
 def test_callback_requires_token_and_reports_missing_notification():
-    client = TestClient(app)
     body = {"fingerprint": "inexistente", "delivery_status": "Enviada"}
-    assert client.post("/api/v1/notifications/callback", json=body).status_code == 401
-    response = client.post(
-        "/api/v1/notifications/callback",
-        json=body,
-        headers={"Authorization": "Bearer change-me-local"},
-    )
+    with TestClient(app) as client:
+        assert client.post("/api/v1/notifications/callback", json=body).status_code == 401
+        response = client.post(
+            "/api/v1/notifications/callback",
+            json=body,
+            headers={"Authorization": "Bearer change-me-local"},
+        )
     assert response.status_code == 404
