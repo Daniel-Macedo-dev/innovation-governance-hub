@@ -308,3 +308,6 @@ class ImportBatch(Base):
     row_count: Mapped[int] = mapped_column(Integer)
     imported_by: Mapped[str] = mapped_column(String(120))
     imported_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    original_filename: Mapped[str] = mapped_column(String(255), default="")
+    created_count: Mapped[int] = mapped_column(Integer, default=0)
+    updated_count: Mapped[int] = mapped_column(Integer, default=0)

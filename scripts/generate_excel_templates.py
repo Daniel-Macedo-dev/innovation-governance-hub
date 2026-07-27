@@ -1,15 +1,11 @@
 from pathlib import Path
 
-from innovation_governance_hub.excel.templates import (
-    EXPENSE_COLUMNS,
-    INITIATIVE_COLUMNS,
-    create_template,
-)
+from innovation_governance_hub.excel.templates import TEMPLATE_FILES, create_template
 
 
 def main() -> None:
-    print(create_template(Path("templates/modelo_iniciativas.xlsx"), INITIATIVE_COLUMNS))
-    print(create_template(Path("templates/modelo_custos.xlsx"), EXPENSE_COLUMNS))
+    for filename, columns in TEMPLATE_FILES.values():
+        print(create_template(Path("templates") / filename, columns))
 
 
 if __name__ == "__main__":

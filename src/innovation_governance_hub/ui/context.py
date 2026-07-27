@@ -11,6 +11,7 @@ from innovation_governance_hub.services.document_service import DocumentService
 from innovation_governance_hub.services.executive_committee_service import ExecutiveCommitteeService
 from innovation_governance_hub.services.export_service import ExportService
 from innovation_governance_hub.services.gate_service import GateService
+from innovation_governance_hub.services.import_service import ImportService
 from innovation_governance_hub.services.indicator_service import IndicatorService
 from innovation_governance_hub.services.initiative_service import InitiativeService
 from innovation_governance_hub.services.meeting_service import MeetingService
@@ -43,6 +44,7 @@ class AppServices:
     documents: DocumentService
     audit: AuditService
     export: ExportService
+    imports: ImportService
     overview_query: OverviewQueryService
     pipeline_query: PipelineQueryService
     initiative_query: InitiativeDetailsQueryService
@@ -71,6 +73,7 @@ def app_services(read_only: bool = False) -> Iterator[AppServices]:
             DocumentService(session),
             AuditService(session),
             ExportService(session),
+            ImportService(session),
             OverviewQueryService(session),
             PipelineQueryService(session),
             InitiativeDetailsQueryService(session),

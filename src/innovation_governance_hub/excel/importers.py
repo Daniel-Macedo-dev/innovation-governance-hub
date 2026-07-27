@@ -1,5 +1,12 @@
-from dataclasses import dataclass
-from datetime import date, datetime
+"""Leitura, validação e persistência de planilhas.
+
+As planilhas usam chaves de negócio estáveis (códigos), nunca IDs internos.
+A persistência reutiliza os mesmos serviços do cadastro manual, garantindo
+validações, auditoria e histórico decisório idênticos nos dois caminhos.
+"""
+
+from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from io import BytesIO
@@ -8,11 +15,20 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from innovation_governance_hub.domain.enums import FinancialStatus, InitiativeStatus, Stage
-from innovation_governance_hub.persistence.models import Expense, ImportBatch, Initiative
+from innovation_governance_hub.domain.enums import (
+    AIStatus,
+    FinancialStatus,
+    InitiativeStatus,
+    RiskLevel,
+    Stage,
+)
+from innovation_governance_hub.persistence.models import Expense, ImportBatch
+from innovation_governance_hub.services.ai_governance_service import AIUseCaseService
 from innovation_governance_hub.services.audit_service import AuditService
+from innovation_governance_hub.services.indicator_service import IndicatorService
+from innovation_governance_hub.services.initiative_service import InitiativeService
 
-from .templates import EXPENSE_COLUMNS, INITIATIVE_COLUMNS
+from .templates import AI_CASE_COLUMNS, EXPENSE_COLUMNS, INDICATOR_COLUMNS, INITIATIVE_COLUMNS
 
 PRIORITIES = {"Baixa", "Média", "Alta", "Crítica"}
 IMPACTS = {"Baixo", "Médio", "Alto", "Muito alto"}
@@ -26,6 +42,18 @@ CATEGORIES = {
     "Outros",
 }
 COST_TYPES = {"Pontual", "Recorrente"}
+BOOLEANS = {"Sim": True, "Não": False, "Nao": False}
+INDICATOR_UNITS = {"Percentual", "Real", "Dias", "Horas", "Quantidade", "Índice"}
+INDICATOR_DIRECTIONS = {"Aumentar", "Reduzir", "Manter faixa"}
+# Rejeição e suspensão exigem justificativa individual e são feitas pela interface.
+IMPORTABLE_AI_STATUSES = {
+    str(AIStatus.DRAFT),
+    str(AIStatus.EVALUATING),
+    str(AIStatus.REVIEW),
+    str(AIStatus.APPROVED),
+}
+
+CREATE, UPDATE = "Criar", "Atualizar"
 
 
 @dataclass(frozen=True)
@@ -41,10 +69,27 @@ class ImportPreview:
     rows: list[dict[str, object]]
     issues: list[ImportIssue]
     fingerprint: str = ""
+    actions: list[str] = field(default_factory=list)
+    targets: list[int | None] = field(default_factory=list)
 
     @property
     def valid(self) -> bool:
         return not self.issues
+
+    @property
+    def create_count(self) -> int:
+        return sum(action == CREATE for action in self.actions)
+
+    @property
+    def update_count(self) -> int:
+        return sum(action == UPDATE for action in self.actions)
+
+
+@dataclass(frozen=True)
+class ImportOutcome:
+    kind: str
+    created: int
+    updated: int
 
 
 def _read(source: bytes) -> pd.DataFrame:
@@ -96,6 +141,46 @@ def _money(
     return amount
 
 
+def _optional_decimal(
+    value: object, row: int, column: str, issues: list[ImportIssue]
+) -> Decimal | None:
+    raw = _text(value).replace("R$", "").replace(" ", "")
+    if not raw:
+        return None
+    if "," in raw:
+        raw = raw.replace(".", "").replace(",", ".")
+    try:
+        return Decimal(raw)
+    except InvalidOperation:
+        issues.append(ImportIssue(row, column, "Valor numérico inválido."))
+        return None
+
+
+def _int(value: object, row: int, column: str, issues: list[ImportIssue]) -> int:
+    raw = _text(value)
+    if not raw:
+        return 0
+    try:
+        parsed = int(float(raw))
+    except ValueError:
+        issues.append(ImportIssue(row, column, "Número inteiro inválido."))
+        return 0
+    if parsed < 0:
+        issues.append(ImportIssue(row, column, "O número não pode ser negativo."))
+        return 0
+    return parsed
+
+
+def _bool(value: object, row: int, column: str, issues: list[ImportIssue]) -> bool:
+    text = _text(value)
+    if not text:
+        return False
+    if text not in BOOLEANS:
+        issues.append(ImportIssue(row, column, "Use Sim ou Não."))
+        return False
+    return BOOLEANS[text]
+
+
 def _enum(
     value: object, allowed: set[str], row: int, column: str, issues: list[ImportIssue]
 ) -> str:
@@ -107,20 +192,48 @@ def _enum(
     return text
 
 
-def preview_initiatives(source: bytes, existing_codes: set[str] | None = None) -> ImportPreview:
+def _resolve_action(
+    code: str,
+    existing: dict[str, int],
+    allow_updates: bool,
+    row_number: int,
+    column: str,
+    issues: list[ImportIssue],
+) -> tuple[str, int | None]:
+    if code and code in existing:
+        if allow_updates:
+            return UPDATE, existing[code]
+        issues.append(
+            ImportIssue(
+                row_number,
+                column,
+                "Código já cadastrado. Ative o modo de atualização para alterar o registro.",
+            )
+        )
+    return CREATE, None
+
+
+def preview_initiatives(
+    source: bytes, existing: dict[str, int] | None = None, allow_updates: bool = False
+) -> ImportPreview:
     frame = _read(source)
     issues = _missing_columns(frame, INITIATIVE_COLUMNS)
+    fingerprint = sha256(source).hexdigest()
     if issues:
-        return ImportPreview("initiatives", [], issues, sha256(source).hexdigest())
+        return ImportPreview("initiatives", [], issues, fingerprint)
+    known = dict(existing or {})
+    seen_in_file: set[str] = set()
     rows: list[dict[str, object]] = []
-    seen = set(existing_codes or set())
+    actions: list[str] = []
+    targets: list[int | None] = []
     for offset, record in frame.iterrows():
         row_number = int(offset) + 2
         code = _text(record["Código"])
-        if code and code in seen:
-            issues.append(ImportIssue(row_number, "Código", "Código duplicado."))
+        if code and code in seen_in_file:
+            issues.append(ImportIssue(row_number, "Código", "Código duplicado no arquivo."))
         if code:
-            seen.add(code)
+            seen_in_file.add(code)
+        action, target = _resolve_action(code, known, allow_updates, row_number, "Código", issues)
         name = _text(record["Nome"])
         problem = _text(record["Descrição do problema"])
         area = _text(record["Área solicitante"])
@@ -178,15 +291,19 @@ def preview_initiatives(source: bytes, existing_codes: set[str] | None = None) -
                 "notes": _text(record["Observações"]),
             }
         )
-    return ImportPreview("initiatives", rows, issues, sha256(source).hexdigest())
+        actions.append(action)
+        targets.append(target)
+    return ImportPreview("initiatives", rows, issues, fingerprint, actions, targets)
 
 
 def preview_expenses(source: bytes, initiatives: dict[str, int]) -> ImportPreview:
     frame = _read(source)
     issues = _missing_columns(frame, EXPENSE_COLUMNS)
+    fingerprint = sha256(source).hexdigest()
     if issues:
-        return ImportPreview("expenses", [], issues, sha256(source).hexdigest())
+        return ImportPreview("expenses", [], issues, fingerprint)
     rows: list[dict[str, object]] = []
+    actions: list[str] = []
     for offset, record in frame.iterrows():
         row_number = int(offset) + 2
         code = _text(record["Código da iniciativa"])
@@ -220,10 +337,255 @@ def preview_expenses(source: bytes, initiatives: dict[str, int]) -> ImportPrevie
                 "amount": _money(record["Valor"], row_number, "Valor", issues, True),
             }
         )
-    return ImportPreview("expenses", rows, issues, sha256(source).hexdigest())
+        actions.append(CREATE)
+    return ImportPreview("expenses", rows, issues, fingerprint, actions, [None] * len(rows))
 
 
-def persist_preview(session: Session, preview: ImportPreview, actor: str = "Sistema") -> int:
+def preview_ai_cases(
+    source: bytes, existing: dict[str, int] | None = None, allow_updates: bool = False
+) -> ImportPreview:
+    frame = _read(source)
+    issues = _missing_columns(frame, AI_CASE_COLUMNS)
+    fingerprint = sha256(source).hexdigest()
+    if issues:
+        return ImportPreview("ai_cases", [], issues, fingerprint)
+    known = dict(existing or {})
+    seen_in_file: set[str] = set()
+    rows: list[dict[str, object]] = []
+    actions: list[str] = []
+    targets: list[int | None] = []
+    for offset, record in frame.iterrows():
+        row_number = int(offset) + 2
+        code = _text(record["Código"])
+        name = _text(record["Nome"])
+        if not code:
+            issues.append(ImportIssue(row_number, "Código", "Campo obrigatório."))
+        if not name:
+            issues.append(ImportIssue(row_number, "Nome", "Campo obrigatório."))
+        if code and code in seen_in_file:
+            issues.append(ImportIssue(row_number, "Código", "Código duplicado no arquivo."))
+        if code:
+            seen_in_file.add(code)
+        action, target = _resolve_action(code, known, allow_updates, row_number, "Código", issues)
+        estimated = _int(record["Usuários estimados"], row_number, "Usuários estimados", issues)
+        active = _int(record["Usuários ativos"], row_number, "Usuários ativos", issues)
+        if active > estimated:
+            issues.append(
+                ImportIssue(
+                    row_number,
+                    "Usuários ativos",
+                    "Usuários ativos não podem superar os estimados.",
+                )
+            )
+        status = _enum(
+            record["Status da avaliação"],
+            IMPORTABLE_AI_STATUSES,
+            row_number,
+            "Status da avaliação",
+            issues,
+        )
+        risk = _enum(
+            record["Nível de risco"],
+            {x.value for x in RiskLevel},
+            row_number,
+            "Nível de risco",
+            issues,
+        )
+        row = {
+            "code": code,
+            "name": name,
+            "responsible_area": _text(record["Área responsável"]),
+            "objective": _text(record["Objetivo"]),
+            "ai_tool": _text(record["Ferramenta avaliada"]),
+            "model_or_provider": _text(record["Provedor ou modelo"]),
+            "data_description": _text(record["Descrição dos dados"]),
+            "uses_personal_data": _bool(
+                record["Usa dados pessoais"], row_number, "Usa dados pessoais", issues
+            ),
+            "risk_level": risk,
+            "risk_mitigation": _text(record["Mitigações"]),
+            "expected_impact": _text(record["Impacto esperado"]),
+            "evaluation_status": status,
+            "owner": _text(record["Responsável"]),
+            "next_review_date": _date(
+                record["Próxima revisão"], row_number, "Próxima revisão", issues
+            ),
+            "policy_accepted": _bool(
+                record["Política aceita"], row_number, "Política aceita", issues
+            ),
+            "governance_approved": _bool(
+                record["Aprovação da governança"], row_number, "Aprovação da governança", issues
+            ),
+            "estimated_users": estimated,
+            "active_users": active,
+            "notes": _text(record["Observações"]),
+        }
+        if status == AIStatus.APPROVED:
+            approval_requirements = [
+                (bool(str(row["owner"]).strip()), "Responsável"),
+                (bool(row["policy_accepted"]), "Política aceita"),
+                (bool(row["governance_approved"]), "Aprovação da governança"),
+                (row["next_review_date"] is not None, "Próxima revisão"),
+                (bool(str(row["data_description"]).strip()), "Descrição dos dados"),
+            ]
+            for satisfied, column in approval_requirements:
+                if not satisfied:
+                    issues.append(
+                        ImportIssue(row_number, column, "Obrigatório para status Aprovado.")
+                    )
+            if risk in {str(RiskLevel.HIGH), str(RiskLevel.CRITICAL)} and not (
+                str(row["risk_mitigation"]).strip() and str(row["notes"]).strip()
+            ):
+                issues.append(
+                    ImportIssue(
+                        row_number,
+                        "Mitigações",
+                        "Alto risco aprovado exige mitigação e justificativa em Observações.",
+                    )
+                )
+        rows.append(row)
+        actions.append(action)
+        targets.append(target)
+    return ImportPreview("ai_cases", rows, issues, fingerprint, actions, targets)
+
+
+def preview_indicators(
+    source: bytes,
+    initiatives: dict[str, int],
+    existing: dict[tuple[str, str], int] | None = None,
+    allow_updates: bool = False,
+) -> ImportPreview:
+    frame = _read(source)
+    issues = _missing_columns(frame, INDICATOR_COLUMNS)
+    fingerprint = sha256(source).hexdigest()
+    if issues:
+        return ImportPreview("indicators", [], issues, fingerprint)
+    known = dict(existing or {})
+    seen_in_file: set[tuple[str, str]] = set()
+    rows: list[dict[str, object]] = []
+    actions: list[str] = []
+    targets: list[int | None] = []
+    for offset, record in frame.iterrows():
+        row_number = int(offset) + 2
+        code = _text(record["Código da iniciativa"])
+        name = _text(record["Nome do indicador"])
+        if not code or code not in initiatives:
+            issues.append(
+                ImportIssue(row_number, "Código da iniciativa", "Iniciativa inexistente.")
+            )
+        if not name:
+            issues.append(ImportIssue(row_number, "Nome do indicador", "Campo obrigatório."))
+        key = (code, name)
+        if name and key in seen_in_file:
+            issues.append(
+                ImportIssue(row_number, "Nome do indicador", "Indicador duplicado no arquivo.")
+            )
+        seen_in_file.add(key)
+        action: str = CREATE
+        target: int | None = None
+        if key in known:
+            if allow_updates:
+                action, target = UPDATE, known[key]
+            else:
+                issues.append(
+                    ImportIssue(
+                        row_number,
+                        "Nome do indicador",
+                        "Indicador já cadastrado nesta iniciativa. "
+                        "Ative o modo de atualização para alterar a medição.",
+                    )
+                )
+        rows.append(
+            {
+                "initiative_id": initiatives.get(code),
+                "name": name,
+                "description": _text(record["Descrição"]),
+                "unit": _enum(record["Unidade"], INDICATOR_UNITS, row_number, "Unidade", issues),
+                "baseline_value": _optional_decimal(
+                    record["Baseline"], row_number, "Baseline", issues
+                ),
+                "target_value": _optional_decimal(record["Meta"], row_number, "Meta", issues),
+                "current_value": _optional_decimal(
+                    record["Valor atual"], row_number, "Valor atual", issues
+                ),
+                "direction": _enum(
+                    record["Direção"], INDICATOR_DIRECTIONS, row_number, "Direção", issues
+                ),
+                "owner": _text(record["Responsável"]),
+                "measurement_date": _date(
+                    record["Data de medição"], row_number, "Data de medição", issues
+                ),
+                "notes": _text(record["Observações"]),
+            }
+        )
+        actions.append(action)
+        targets.append(target)
+    return ImportPreview("indicators", rows, issues, fingerprint, actions, targets)
+
+
+def _persist_initiatives(session: Session, preview: ImportPreview, actor: str) -> tuple[int, int]:
+    service = InitiativeService(session)
+    created = updated = 0
+    for row, action, target in zip(preview.rows, preview.actions, preview.targets, strict=True):
+        data = {key: value for key, value in row.items() if value is not None or key == "deadline"}
+        data["actor"] = actor
+        if action == UPDATE and target is not None:
+            # Código, estágio e data de criação não mudam por planilha:
+            # estágio avança apenas pelos gates.
+            for locked in ("code", "current_stage", "created_date"):
+                data.pop(locked, None)
+            service.update(target, data)
+            updated += 1
+        else:
+            if not data.get("code"):
+                data.pop("code", None)
+            service.create(data)
+            created += 1
+    return created, updated
+
+
+def _persist_expenses(session: Session, preview: ImportPreview) -> tuple[int, int]:
+    for row in preview.rows:
+        session.add(Expense(**dict(row)))
+    return len(preview.rows), 0
+
+
+def _persist_ai_cases(session: Session, preview: ImportPreview, actor: str) -> tuple[int, int]:
+    service = AIUseCaseService(session)
+    created = updated = 0
+    for row, action, target in zip(preview.rows, preview.actions, preview.targets, strict=True):
+        data = dict(row)
+        data["actor"] = actor
+        if action == UPDATE and target is not None:
+            service.save(data, target)
+            updated += 1
+        else:
+            service.save(data)
+            created += 1
+    return created, updated
+
+
+def _persist_indicators(session: Session, preview: ImportPreview, actor: str) -> tuple[int, int]:
+    service = IndicatorService(session)
+    created = updated = 0
+    for row, action, target in zip(preview.rows, preview.actions, preview.targets, strict=True):
+        data = {key: value for key, value in row.items() if key != "initiative_id"}
+        initiative_id = int(str(row["initiative_id"]))
+        if action == UPDATE and target is not None:
+            service.save(initiative_id, data, actor, target)
+            updated += 1
+        else:
+            service.save(initiative_id, data, actor)
+            created += 1
+    return created, updated
+
+
+def persist_preview(
+    session: Session,
+    preview: ImportPreview,
+    actor: str = "Sistema",
+    original_filename: str = "",
+) -> ImportOutcome:
     if not preview.valid:
         raise ValueError("A importação possui erros e não pode ser persistida.")
     if preview.fingerprint and session.scalar(
@@ -232,23 +594,13 @@ def persist_preview(session: Session, preview: ImportPreview, actor: str = "Sist
         raise ValueError("Este arquivo já foi importado.")
     with session.begin_nested():
         if preview.kind == "initiatives":
-            highest = max(
-                (
-                    int(code.split("-")[1])
-                    for code in session.scalars(select(Initiative.code)).all()
-                ),
-                default=0,
-            )
-            for source_row in preview.rows:
-                row = dict(source_row)
-                if not row["code"]:
-                    highest += 1
-                    row["code"] = f"INI-{highest:03d}"
-                row["last_activity_at"] = datetime.now()
-                session.add(Initiative(**row))
+            created, updated = _persist_initiatives(session, preview, actor)
         elif preview.kind == "expenses":
-            for row in preview.rows:
-                session.add(Expense(**dict(row)))
+            created, updated = _persist_expenses(session, preview)
+        elif preview.kind == "ai_cases":
+            created, updated = _persist_ai_cases(session, preview, actor)
+        elif preview.kind == "indicators":
+            created, updated = _persist_indicators(session, preview, actor)
         else:
             raise ValueError("Tipo de importação desconhecido.")
         session.flush()
@@ -259,6 +611,9 @@ def persist_preview(session: Session, preview: ImportPreview, actor: str = "Sist
                     import_type=preview.kind,
                     row_count=len(preview.rows),
                     imported_by=actor,
+                    original_filename=original_filename,
+                    created_count=created,
+                    updated_count=updated,
                 )
             )
         AuditService(session).record(
@@ -268,10 +623,18 @@ def persist_preview(session: Session, preview: ImportPreview, actor: str = "Sist
             entity_code=preview.fingerprint[:12],
             action="importação",
             actor=actor,
-            summary=f"{len(preview.rows)} registros importados de {preview.kind}.",
-            metadata={"kind": preview.kind, "row_count": len(preview.rows)},
+            summary=(
+                f"Importação de {preview.kind}: {created} registros criados, {updated} atualizados."
+            ),
+            metadata={
+                "kind": preview.kind,
+                "row_count": len(preview.rows),
+                "created": created,
+                "updated": updated,
+                "original_filename": original_filename,
+            },
         )
-    return len(preview.rows)
+    return ImportOutcome(preview.kind, created, updated)
 
 
 def error_report(preview: ImportPreview) -> bytes:

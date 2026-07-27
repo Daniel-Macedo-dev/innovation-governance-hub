@@ -11,15 +11,25 @@ from innovation_governance_hub.database import Base
 from innovation_governance_hub.excel.exporters import executive_workbook
 from innovation_governance_hub.excel.importers import (
     persist_preview,
+    preview_ai_cases,
     preview_expenses,
+    preview_indicators,
     preview_initiatives,
 )
 from innovation_governance_hub.excel.templates import (
+    AI_CASE_COLUMNS,
     EXPENSE_COLUMNS,
+    INDICATOR_COLUMNS,
     INITIATIVE_COLUMNS,
+    TEMPLATE_FILES,
     create_template,
 )
-from innovation_governance_hub.persistence.models import Expense, Initiative
+from innovation_governance_hub.persistence.models import (
+    AIUseCase,
+    Expense,
+    Initiative,
+    InitiativeIndicator,
+)
 
 
 def workbook_bytes(columns: list[str], row: dict[str, object]) -> bytes:
@@ -29,8 +39,8 @@ def workbook_bytes(columns: list[str], row: dict[str, object]) -> bytes:
 
 
 def main() -> None:
-    create_template(Path("templates/modelo_iniciativas.xlsx"), INITIATIVE_COLUMNS)
-    create_template(Path("templates/modelo_custos.xlsx"), EXPENSE_COLUMNS)
+    for filename, columns in TEMPLATE_FILES.values():
+        create_template(Path("templates") / filename, columns)
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as session, session.begin():
@@ -87,6 +97,62 @@ def main() -> None:
         assert expenses.valid
         persist_preview(session, expenses)
         assert session.scalar(select(func.count()).select_from(Expense)) == 1
+        ai_row = dict(
+            zip(
+                AI_CASE_COLUMNS,
+                [
+                    "IA-RT-001",
+                    "Caso roundtrip",
+                    "Operações",
+                    "Apoiar análise fictícia",
+                    "Assistente fictício",
+                    "Provedor avaliado",
+                    "Dados sintéticos",
+                    "Não",
+                    "Médio",
+                    "Revisão periódica",
+                    "Ganho potencial",
+                    "Em avaliação",
+                    "Responsável Demo",
+                    date(2026, 12, 1),
+                    "Não",
+                    "Não",
+                    100,
+                    25,
+                    "Roundtrip",
+                ],
+                strict=True,
+            )
+        )
+        ai_cases = preview_ai_cases(workbook_bytes(AI_CASE_COLUMNS, ai_row))
+        assert ai_cases.valid, ai_cases.issues
+        persist_preview(session, ai_cases)
+        assert session.scalar(select(func.count()).select_from(AIUseCase)) == 1
+        indicator_row = dict(
+            zip(
+                INDICATOR_COLUMNS,
+                [
+                    item.code,
+                    "Tempo de ciclo roundtrip",
+                    "Indicador fictício",
+                    "Dias",
+                    20,
+                    8,
+                    15,
+                    "Reduzir",
+                    "Responsável Demo",
+                    date(2026, 7, 15),
+                    "Roundtrip",
+                ],
+                strict=True,
+            )
+        )
+        indicators = preview_indicators(
+            workbook_bytes(INDICATOR_COLUMNS, indicator_row), {item.code: item.id}
+        )
+        assert indicators.valid, indicators.issues
+        persist_preview(session, indicators)
+        assert session.scalar(select(func.count()).select_from(InitiativeIndicator)) == 1
         data = executive_workbook(session)
     workbook = load_workbook(BytesIO(data))
     required = {

@@ -48,18 +48,29 @@ def test_initiative_import_valid_and_persisted(session):
     preview = preview_initiatives(xlsx(INITIATIVE_COLUMNS, valid_initiative()))
     assert preview.valid
     assert preview.rows[0]["planned_cost"] == Decimal("10500.50")
-    assert persist_preview(session, preview) == 1
+    outcome = persist_preview(session, preview)
+    assert (outcome.created, outcome.updated) == (1, 0)
     assert session.scalar(select(Initiative).where(Initiative.code == "INI-900")) is not None
     with pytest.raises(ValueError, match="já foi importado"):
         persist_preview(session, preview)
 
 
-def test_initiative_import_reports_missing_column_and_duplicate():
+def test_initiative_import_reports_missing_column_and_existing_code():
     missing = preview_initiatives(xlsx(INITIATIVE_COLUMNS[:-1], valid_initiative()))
     assert not missing.valid
-    duplicate = preview_initiatives(xlsx(INITIATIVE_COLUMNS, valid_initiative()), {"INI-900"})
-    assert any(issue.message == "Código duplicado." for issue in duplicate.issues)
+    duplicate = preview_initiatives(xlsx(INITIATIVE_COLUMNS, valid_initiative()), {"INI-900": 1})
+    assert any("Ative o modo de atualização" in issue.message for issue in duplicate.issues)
     assert len(error_report(duplicate)) > 100
+
+
+def test_initiative_update_mode_marks_row_and_requires_opt_in():
+    updatable = preview_initiatives(
+        xlsx(INITIATIVE_COLUMNS, valid_initiative()), {"INI-900": 7}, allow_updates=True
+    )
+    assert updatable.valid
+    assert updatable.actions == ["Atualizar"]
+    assert updatable.targets == [7]
+    assert (updatable.create_count, updatable.update_count) == (0, 1)
 
 
 def test_expense_import_valid_and_invalid_initiative(session):

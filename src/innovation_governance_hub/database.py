@@ -47,6 +47,21 @@ def init_db(target: Engine | None = None) -> None:
                         "ALTER TABLE initiatives ADD COLUMN strategic_theme VARCHAR(120) NOT NULL DEFAULT ''"
                     )
                 )
+    if selected.dialect.name == "sqlite" and inspect(selected).has_table("import_batches"):
+        existing_import = {
+            column["name"] for column in inspect(selected).get_columns("import_batches")
+        }
+        import_additions = {
+            "original_filename": "VARCHAR(255) NOT NULL DEFAULT ''",
+            "created_count": "INTEGER NOT NULL DEFAULT 0",
+            "updated_count": "INTEGER NOT NULL DEFAULT 0",
+        }
+        with selected.begin() as connection:
+            for name, definition in import_additions.items():
+                if name not in existing_import:
+                    connection.execute(
+                        text(f"ALTER TABLE import_batches ADD COLUMN {name} {definition}")
+                    )
     if selected.dialect.name == "sqlite" and inspect(selected).has_table("notification_logs"):
         existing = {column["name"] for column in inspect(selected).get_columns("notification_logs")}
         additions = {
