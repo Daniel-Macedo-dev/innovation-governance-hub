@@ -1,9 +1,10 @@
 # Capturas automatizadas da aplicação
 
-Os nove arquivos PNG desta pasta são capturas reais do Streamlit em execução, produzidas por um navegador headless em viewport 1440 × 1000. Todos os nomes, organizações, valores e acontecimentos exibidos são fictícios.
+Os onze arquivos PNG desta pasta são capturas reais do Streamlit em execução, produzidas por um navegador headless em viewport 1440 × 1000. Todos os nomes, organizações, valores e acontecimentos exibidos são fictícios.
 
 | Arquivo | Evidência apresentada |
 | --- | --- |
+| `00-comite-inovacao.png` | Comitê com decisões requeridas, saúde do portfólio e síntese executiva. |
 | `01-dashboard-executivo.png` | Indicadores executivos e distribuição do portfólio por estágio. |
 | `02-funil-inovacao.png` | Iniciativas, estágio, status, prazo e posição financeira. |
 | `03-gate-bloqueado.png` | Tentativa real de avanço impedida por critérios pendentes. |
@@ -13,6 +14,7 @@ Os nove arquivos PNG desta pasta são capturas reais do Streamlit em execução,
 | `07-resumo-reuniao.png` | Reunião fictícia com ata e resumo executivo manual. |
 | `08-importacao-excel.png` | Upload real de XLSX, validação linha a linha e prévia sem persistência. |
 | `09-automacoes-alertas.png` | Verificações internas, severidades e ciclo de vida dos alertas. |
+| `10-priorizacao-indicadores.png` | Matriz Valor × Esforço e indicadores de resultado do portfólio. |
 
 ## Reproduzir
 
@@ -23,7 +25,7 @@ python -m pip install -e ".[dev,screenshots]"
 python -m scripts.capture_screenshots
 ```
 
-O script usa a porta dedicada `8511` e o banco temporário `data/screenshots_demo.db`. Ele inicializa e popula esse banco, gera os modelos Excel, executa as verificações locais, abre a interface e substitui somente os nove PNGs esperados. Navegador, Streamlit, banco, WAL, XLSX de upload e log temporário são encerrados ou removidos no bloco de cleanup, inclusive quando há erro.
+O script usa a porta dedicada `8511` e o banco temporário `data/screenshots_demo.db`. Ele inicializa e popula esse banco, gera os modelos Excel, executa as verificações locais, abre a interface e substitui somente os onze PNGs esperados. Navegador, Streamlit, banco, WAL, XLSX de upload e log temporário são encerrados ou removidos no bloco de cleanup, inclusive quando há erro.
 
 A seleção de navegador tenta, nesta ordem:
 

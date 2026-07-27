@@ -38,10 +38,10 @@ As imagens são capturas automatizadas da aplicação Streamlit real. Consulte [
 
 - Dashboard executivo com indicadores, gráficos e listas de atenção.
 - Funil sequencial com critérios automáticos, manuais e aprovações; tentativas bloqueadas são auditadas.
-- Documentos locais, reuniões e linha do tempo imutável de eventos relevantes.
-- Casos de IA com histórico decisório, justificativas, restrições e próxima revisão.
-- Orçamento em `Decimal`, compromissos, variação e projeção simples até dezembro.
-- Importação transacional com fingerprint contra reprocessamento.
+- Documentos locais, reuniões com ata e resumo executivo manual, decisões, pendências e linha do tempo imutável de eventos relevantes.
+- Casos de IA com histórico decisório, justificativas, restrições, adoção e próxima revisão — governança de iniciativas de IA, sem executar IA no produto.
+- Orçamento em `Decimal`, despesas por categoria, compromissos, variação, iniciativas acima do planejado e projeção simples até dezembro.
+- Importação Excel operacional na interface para iniciativas, custos, casos de IA e indicadores: modelos para download, validação linha a linha, prévia com ações de criação/atualização, relatório de erros, confirmação transacional, fingerprint SHA-256, histórico de lotes e efeito imediato nos KPIs.
 - Alertas com reconhecimento, resolução, descarte justificado e reabertura auditada.
 - Pacote executivo Excel com dez abas, gerado em memória a partir da mesma leitura do Comitê.
 
@@ -115,7 +115,7 @@ python -m pip install -e ".[dev,screenshots]"
 python -m scripts.capture_screenshots
 ```
 
-Na página Excel, baixe modelos gerados por código, escolha iniciativas ou custos, valide a planilha, revise a prévia e confirme a transação. Linhas inválidas impedem toda a persistência e produzem relatório XLSX de erros. O MVP não usa locale global e apresenta moeda/data em pt-BR.
+Na página Excel, baixe os modelos (`modelo_iniciativas.xlsx`, `modelo_custos.xlsx`, `modelo_casos_ia.xlsx`, `modelo_indicadores.xlsx`), escolha o tipo de importação, envie o arquivo, revise a prévia validada (com ações de criação e atualização explícitas) e confirme a transação. As planilhas usam códigos de negócio (`INI-xxx`, `IA-xxx`), nunca IDs internos; importe iniciativas antes dos dados que dependem delas. Linhas inválidas impedem toda a persistência e produzem relatório XLSX de erros; o mesmo arquivo não é reprocessado e as atualizações exigem opção explícita. Após confirmar, a página mostra o que foi criado/atualizado e o efeito nos indicadores. O MVP não usa locale global e apresenta moeda/data em pt-BR.
 
 ## Métricas, estrutura e limitações
 
