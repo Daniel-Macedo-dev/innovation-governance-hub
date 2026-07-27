@@ -1,4 +1,5 @@
 from dataclasses import asdict, dataclass
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -26,9 +27,73 @@ from innovation_governance_hub.services.gate_service import GateService
 from innovation_governance_hub.services.indicator_service import IndicatorService
 from innovation_governance_hub.services.prioritization_service import PrioritizationService
 
+INACTIVE_STATUSES = {"Concluída", "Arquivada"}
+UNASSIGNED_AREA = "Área não informada"
+
 
 def _row(model: object, *fields: str) -> dict[str, Any]:
     return {field: getattr(model, field) for field in fields}
+
+
+def _is_active(item: Initiative) -> bool:
+    return item.status not in INACTIVE_STATUSES
+
+
+@dataclass(frozen=True)
+class AreaDeliveryMetric:
+    area: str
+    active: int
+    on_time: int
+    overdue: int
+    no_deadline: int
+
+    @property
+    def on_time_percentage(self) -> float:
+        if self.active == 0:
+            return 0.0
+        return round(self.on_time / self.active * 100, 1)
+
+
+def _area_delivery_metrics(
+    initiatives: list[Initiative], reference: date
+) -> list[AreaDeliveryMetric]:
+    """Execução por área do portfólio ativo.
+
+    Ativo = status diferente de Concluída/Arquivada. Uma iniciativa ativa está
+    dentro do prazo quando o prazo é igual ou posterior à data de negócio; está
+    atrasada quando o prazo é anterior; e conta como sem prazo quando não possui
+    prazo — nesse caso o cumprimento não pode ser comprovado e reduz o percentual.
+    """
+    active_count: dict[str, int] = {}
+    on_time: dict[str, int] = {}
+    overdue: dict[str, int] = {}
+    no_deadline: dict[str, int] = {}
+    for item in initiatives:
+        if not _is_active(item):
+            continue
+        area = item.requesting_area.strip() or UNASSIGNED_AREA
+        active_count[area] = active_count.get(area, 0) + 1
+        on_time.setdefault(area, 0)
+        overdue.setdefault(area, 0)
+        no_deadline.setdefault(area, 0)
+        if item.deadline is None:
+            no_deadline[area] += 1
+        elif item.deadline >= reference:
+            on_time[area] += 1
+        else:
+            overdue[area] += 1
+    metrics = [
+        AreaDeliveryMetric(
+            area=area,
+            active=active_count[area],
+            on_time=on_time[area],
+            overdue=overdue[area],
+            no_deadline=no_deadline[area],
+        )
+        for area in active_count
+    ]
+    # Ordenação operacional: maior volume de ativos primeiro, desempate alfabético.
+    return sorted(metrics, key=lambda metric: (-metric.active, metric.area))
 
 
 @dataclass(frozen=True)
@@ -55,10 +120,12 @@ class OverviewQueryService:
         self.session = session
 
     def load(self) -> dict[str, Any]:
+        today = business_date()
         initiatives = list(self.session.scalars(select(Initiative)).all())
         cases = list(self.session.scalars(select(AIUseCase)).all())
-        totals = BudgetService(self.session).totals(business_date().year)
-        active = [item for item in initiatives if item.status not in {"Concluída", "Arquivada"}]
+        totals = BudgetService(self.session).totals(today.year)
+        active = [item for item in initiatives if _is_active(item)]
+        area_delivery = _area_delivery_metrics(initiatives, today)
         return {
             "initiatives": [
                 _row(
@@ -74,9 +141,8 @@ class OverviewQueryService:
                 for item in initiatives
             ],
             "active": len(active),
-            "overdue": sum(
-                bool(item.deadline and item.deadline < business_date()) for item in active
-            ),
+            "overdue": sum(bool(item.deadline and item.deadline < today) for item in active),
+            "area_delivery": area_delivery,
             "budget": totals,
             "ai_total": len(cases),
             "ai_approved": sum(item.evaluation_status == "Aprovado" for item in cases),
