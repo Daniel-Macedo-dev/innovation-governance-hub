@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -6,6 +7,7 @@ from sqlalchemy.orm import Session
 from innovation_governance_hub.domain.enums import FinancialStatus
 from innovation_governance_hub.exceptions import ValidationError
 from innovation_governance_hub.persistence.models import AnnualBudget, Expense, Initiative
+from innovation_governance_hub.services.audit_service import AuditService
 
 
 class BudgetService:
@@ -34,6 +36,55 @@ class BudgetService:
             "forecast": forecast_dec,
             "balance": planned - actual_dec,
             "consumed_percent": (actual_dec / planned * 100) if planned else Decimal("0"),
+            "variance": planned - actual_dec,
+            "variance_percent": ((planned - actual_dec) / planned * 100)
+            if planned
+            else Decimal("0"),
+            "committed": actual_dec + forecast_dec,
+            "balance_after_commitments": planned - actual_dec - forecast_dec,
+        }
+
+    def projection(self, year: int, as_of: date | None = None) -> dict[str, Decimal | int]:
+        reference = as_of or date.today()
+        totals = self.totals(year)
+        actual_rows = list(
+            self.session.execute(
+                select(Expense.competence_date, Expense.amount).where(
+                    func.extract("year", Expense.competence_date) == year,
+                    Expense.financial_status == FinancialStatus.ACTUAL,
+                    Expense.competence_date <= reference,
+                )
+            )
+        )
+        monthly = {month: Decimal("0") for month in range(1, 13)}
+        for competence, amount in actual_rows:
+            monthly[competence.month] += Decimal(amount)
+        elapsed = min(
+            12,
+            max(
+                0,
+                reference.month if reference.year == year else (12 if reference.year > year else 0),
+            ),
+        )
+        active_months = [monthly[month] for month in range(1, elapsed + 1)]
+        average = sum(active_months, Decimal("0")) / elapsed if elapsed else Decimal("0")
+        recent_months = active_months[-3:]
+        recent_average = (
+            sum(recent_months, Decimal("0")) / len(recent_months) if recent_months else Decimal("0")
+        )
+        future_months = max(0, 12 - elapsed)
+        projected = (
+            Decimal(totals["actual"]) + Decimal(totals["forecast"]) + recent_average * future_months
+        )
+        planned = Decimal(totals["planned"])
+        return {
+            **totals,
+            "elapsed_months": elapsed,
+            "future_months": future_months,
+            "monthly_average": average,
+            "recent_three_month_average": recent_average,
+            "year_end_projection": projected,
+            "projected_balance": planned - projected,
         }
 
     def initiative_actual(self, initiative_id: int) -> Decimal:
@@ -63,10 +114,21 @@ class BudgetService:
         if not expense:
             raise ValidationError("Despesa não encontrada.")
         for key, value in data.items():
+            if key == "actor":
+                continue
             setattr(expense, key, value)
         expense.amount = amount
         self.session.add(expense)
         self.session.flush()
+        AuditService(self.session).record(
+            event_type="expense.created" if expense_id is None else "expense.updated",
+            entity_type="Despesa",
+            entity_id=expense.id,
+            action="criação" if expense_id is None else "edição",
+            actor=str(data.get("actor", "Sistema")),
+            summary=f"Despesa {expense.description} salva.",
+            metadata={"amount": amount, "initiative_id": expense.initiative_id},
+        )
         return expense
 
     def delete_expense(self, expense_id: int) -> None:
