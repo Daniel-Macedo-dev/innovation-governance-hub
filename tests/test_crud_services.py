@@ -67,9 +67,9 @@ def test_ai_crud_and_adoption_bounds(session):
     invalid["active_users"] = 11
     with pytest.raises(ValidationError):
         service.save(invalid)
-    service.delete(case.id)
-    session.flush()
-    assert session.get(type(case), case.id) is None
+    with pytest.raises(ValidationError, match="preservam histórico"):
+        service.delete(case.id)
+    assert session.get(type(case), case.id) is case
 
 
 def test_expense_crud_and_positive_amount(session):

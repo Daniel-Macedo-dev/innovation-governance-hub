@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 
 from innovation_governance_hub.domain.enums import AIStatus, RiskLevel
 from innovation_governance_hub.exceptions import ValidationError
-from innovation_governance_hub.persistence.models import AIUseCase
+from innovation_governance_hub.persistence.models import AIGovernanceDecision, AIUseCase
+from innovation_governance_hub.services.audit_service import AuditService
 
 
 def adoption(use_case: AIUseCase) -> float:
@@ -58,15 +59,70 @@ class AIUseCaseService:
         use_case = self.session.get(AIUseCase, use_case_id) if use_case_id else AIUseCase()
         if not use_case:
             raise ValidationError("Caso de IA não encontrado.")
+        is_new = use_case_id is None
+        previous_status = use_case.evaluation_status if not is_new else ""
+        actor = str(data.get("actor", data.get("owner", "Sistema")))
+        justification = str(data.get("justification", data.get("notes", ""))).strip()
+        restrictions = str(data.get("restrictions", "")).strip()
+        target = str(data.get("evaluation_status", previous_status))
+        if target == AIStatus.RESTRICTED and not restrictions:
+            raise ValidationError("Aprovação com restrições exige a descrição das restrições.")
+        if target in (AIStatus.REJECTED, AIStatus.SUSPENDED) and not justification:
+            raise ValidationError("Rejeição ou suspensão exige justificativa.")
+        ignored = {"actor", "justification", "restrictions"}
         for key, value in data.items():
+            if key in ignored:
+                continue
             setattr(use_case, key, value)
         validate_approval(use_case, use_case.evaluation_status)
         self.session.add(use_case)
         self.session.flush()
+        event = "ai_case.created" if is_new else "ai_case.updated"
+        AuditService(self.session).record(
+            event_type=event,
+            entity_type="CasoIA",
+            entity_id=use_case.id,
+            entity_code=use_case.code,
+            action="criação" if is_new else "avaliação",
+            actor=actor,
+            summary=f"Caso de IA {use_case.code} {'criado' if is_new else 'avaliado'}.",
+            changes={"evaluation_status": {"before": previous_status, "after": target}},
+        )
+        if previous_status != target:
+            self.session.add(
+                AIGovernanceDecision(
+                    ai_use_case_id=use_case.id,
+                    previous_status=previous_status,
+                    new_status=target,
+                    risk_level=use_case.risk_level,
+                    governance_approved=use_case.governance_approved,
+                    policy_accepted=use_case.policy_accepted,
+                    responsible=actor,
+                    justification=justification,
+                    restrictions=restrictions,
+                    next_review_date=use_case.next_review_date,
+                )
+            )
         return use_case
 
-    def delete(self, use_case_id: int) -> None:
+    def suspend(self, use_case_id: int, actor: str, justification: str) -> AIUseCase:
         use_case = self.session.get(AIUseCase, use_case_id)
         if not use_case:
             raise ValidationError("Caso de IA não encontrado.")
-        self.session.delete(use_case)
+        return self.save(
+            {
+                **{
+                    column.name: getattr(use_case, column.name)
+                    for column in AIUseCase.__table__.columns
+                    if column.name not in {"id", "created_at", "updated_at"}
+                },
+                "evaluation_status": AIStatus.SUSPENDED,
+                "governance_approved": False,
+                "actor": actor,
+                "justification": justification,
+            },
+            use_case.id,
+        )
+
+    def delete(self, use_case_id: int) -> None:
+        raise ValidationError("Casos de IA preservam histórico; use a suspensão.")
