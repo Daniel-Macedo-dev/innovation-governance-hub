@@ -1,0 +1,41 @@
+name: Python quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: sqlite:///data/ci.db
+      UPLOAD_DIR: data/ci-uploads
+      AI_PROVIDER: demo
+      N8N_ENABLED: "false"
+      INTEGRATION_API_TOKEN: ci-local-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project
+        run: python -m pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Check formatting
+        run: ruff format --check .
+      - name: Type check
+        run: mypy src
+      - name: Test
+        run: pytest
+      - name: Validate Excel roundtrip
+        run: python -m scripts.validate_excel_roundtrip
+      - name: Validate project
+        run: python -m scripts.validate_project
