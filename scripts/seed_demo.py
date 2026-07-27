@@ -168,6 +168,31 @@ def seed() -> dict[str, int]:
         for idx in range(1, 13):
             code = f"IA-{idx:03d}"
             if not session.scalar(select(AIUseCase).where(AIUseCase.code == code)):
+                if idx == 7:
+                    session.add(
+                        AIUseCase(
+                            code=code,
+                            name="Assistente de propostas comerciais",
+                            responsible_area="Suprimentos",
+                            objective="Acelerar a elaboração de propostas com apoio de IA.",
+                            ai_tool="Assistente Fictício 7",
+                            model_or_provider="Provedor em avaliação",
+                            data_description="Histórico de propostas e dados de clientes fictícios.",
+                            uses_personal_data=True,
+                            risk_level=RiskLevel.HIGH,
+                            risk_mitigation="Plano de mitigação em elaboração pela área.",
+                            expected_impact="Redução do tempo de resposta comercial.",
+                            evaluation_status=AIStatus.EVALUATING,
+                            owner="Responsável IA 7",
+                            next_review_date=business_date() + timedelta(days=21),
+                            policy_accepted=False,
+                            governance_approved=False,
+                            estimated_users=180,
+                            active_users=142,
+                            notes="Uso cresceu antes da conclusão da avaliação de governança.",
+                        )
+                    )
+                    continue
                 risk = [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.CRITICAL][
                     idx % 4
                 ]
