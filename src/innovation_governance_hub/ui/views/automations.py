@@ -6,6 +6,14 @@ from innovation_governance_hub.exceptions import DomainError
 from innovation_governance_hub.ui.context import app_services
 from innovation_governance_hub.ui.navigation import AI_CASE, INITIATIVE, go
 
+# Rótulos legíveis para os identificadores persistidos de entidade.
+ENTITY_LABELS = {
+    "Iniciativa": "Iniciativa",
+    "CasoIA": "Caso de IA",
+    "Pendencia": "Pendência",
+    "OrcamentoAnual": "Orçamento anual",
+}
+
 
 def automations() -> None:
     st.caption(
@@ -22,7 +30,10 @@ def automations() -> None:
     statuses = st.multiselect("Status", ["Novo", "Reconhecido", "Resolvido", "Ignorado"])
     severities = st.multiselect("Severidade", sorted({str(item["severity"]) for item in items}))
     types = st.multiselect("Tipo", sorted({str(item["notification_type"]) for item in items}))
-    entities = st.multiselect("Entidade", sorted({str(item["entity_type"]) for item in items}))
+    entity_values = sorted({str(item["entity_type"]) for item in items})
+    label_by_value = {value: ENTITY_LABELS.get(value, value) for value in entity_values}
+    entity_labels = st.multiselect("Entidade", list(label_by_value.values()))
+    entities = {value for value, label in label_by_value.items() if label in entity_labels}
     period = st.selectbox(
         "Período", (7, 15, 30, 90), index=2, format_func=lambda value: f"{value} dias"
     )

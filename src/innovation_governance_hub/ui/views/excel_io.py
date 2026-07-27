@@ -12,6 +12,56 @@ from innovation_governance_hub.ui.context import app_services
 from innovation_governance_hub.ui.formatting import brl
 
 TEMPLATE_DIR = Path("templates")
+# Rótulos de exibição da prévia; chaves internas nunca aparecem para o usuário.
+FIELD_LABELS = {
+    "code": "Código",
+    "name": "Nome",
+    "problem_description": "Descrição do problema",
+    "proposed_solution": "Solução proposta",
+    "requesting_area": "Área solicitante",
+    "owner": "Responsável",
+    "priority": "Prioridade",
+    "expected_impact_level": "Impacto esperado",
+    "expected_impact_description": "Descrição do impacto",
+    "complexity": "Complexidade",
+    "created_date": "Data de criação",
+    "deadline": "Prazo",
+    "status": "Status",
+    "current_stage": "Estágio atual",
+    "planned_cost": "Custo planejado",
+    "expected_benefit": "Benefício esperado",
+    "notes": "Observações",
+    "competence_date": "Data de competência",
+    "category": "Categoria",
+    "description": "Descrição",
+    "supplier": "Fornecedor",
+    "tool_name": "Ferramenta",
+    "cost_type": "Tipo de custo",
+    "financial_status": "Status financeiro",
+    "amount": "Valor",
+    "responsible_area": "Área responsável",
+    "objective": "Objetivo",
+    "ai_tool": "Ferramenta avaliada",
+    "model_or_provider": "Provedor ou modelo",
+    "data_description": "Descrição dos dados",
+    "uses_personal_data": "Usa dados pessoais",
+    "risk_level": "Nível de risco",
+    "risk_mitigation": "Mitigações",
+    "expected_impact": "Impacto esperado",
+    "evaluation_status": "Status da avaliação",
+    "next_review_date": "Próxima revisão",
+    "policy_accepted": "Política aceita",
+    "governance_approved": "Aprovação da governança",
+    "estimated_users": "Usuários estimados",
+    "active_users": "Usuários ativos",
+    "unit": "Unidade",
+    "baseline_value": "Baseline",
+    "target_value": "Meta",
+    "current_value": "Valor atual",
+    "direction": "Direção",
+    "measurement_date": "Data de medição",
+}
+HIDDEN_PREVIEW_FIELDS = {"initiative_id"}
 IMPACT_LABELS = {
     "iniciativas_ativas": "Iniciativas ativas",
     "custo_realizado_ano": "Custo realizado no ano",
@@ -105,7 +155,14 @@ def _import_section() -> None:
         )
         st.dataframe(
             [
-                {"Ação": action, **{str(k): str(v) for k, v in row.items()}}
+                {
+                    "Ação": action,
+                    **{
+                        FIELD_LABELS.get(str(key), str(key)): str(value)
+                        for key, value in row.items()
+                        if key not in HIDDEN_PREVIEW_FIELDS
+                    },
+                }
                 for action, row in zip(preview.actions, preview.rows, strict=True)
             ][:50],
             use_container_width=True,

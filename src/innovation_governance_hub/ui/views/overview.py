@@ -25,8 +25,15 @@ def overview() -> None:
     if not frame.empty:
         st.plotly_chart(
             px.histogram(
-                frame, x="current_stage", color="requesting_area", title="Iniciativas por estágio"
-            ),
+                frame,
+                x="current_stage",
+                color="requesting_area",
+                title="Iniciativas por estágio",
+                labels={
+                    "current_stage": "Estágio",
+                    "requesting_area": "Área solicitante",
+                },
+            ).update_yaxes(title_text="Iniciativas"),
             use_container_width=True,
         )
     st.caption("Leitura executiva sem atualização automática de alertas.")
