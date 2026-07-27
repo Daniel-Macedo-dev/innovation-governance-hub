@@ -19,6 +19,7 @@ from innovation_governance_hub.persistence.models import (
     InitiativeGateCheck,
     StageTransition,
 )
+from innovation_governance_hub.services.audit_service import AuditService
 
 
 class GateService:
@@ -126,11 +127,31 @@ class GateService:
         self.session.add(transition)
         if missing:
             self.session.flush()
+            AuditService(self.session).record(
+                event_type="gate.blocked",
+                entity_type="Iniciativa",
+                entity_id=initiative.id,
+                entity_code=initiative.code,
+                action="tentativa bloqueada",
+                actor=actor,
+                summary=f"Avanço de {current.value} para {target.value} bloqueado.",
+                metadata={"missing_criteria": missing},
+            )
             raise GateBlockedError(missing)
         initiative.current_stage = target
         initiative.last_activity_at = datetime.now()
         if target == Stage.COMPLETED:
             initiative.status = InitiativeStatus.COMPLETED
+        AuditService(self.session).record(
+            event_type="gate.advanced",
+            entity_type="Iniciativa",
+            entity_id=initiative.id,
+            entity_code=initiative.code,
+            action="avanço de gate",
+            actor=actor,
+            summary=f"Gate avançado de {current.value} para {target.value}.",
+            changes={"current_stage": {"before": current, "after": target}},
+        )
         return initiative
 
     def archive(self, initiative_id: int, actor: str, reason: str) -> Initiative:
@@ -151,4 +172,14 @@ class GateService:
         )
         initiative.current_stage, initiative.status = Stage.ARCHIVED, InitiativeStatus.ARCHIVED
         initiative.last_activity_at = datetime.now()
+        AuditService(self.session).record(
+            event_type="initiative.archived",
+            entity_type="Iniciativa",
+            entity_id=initiative.id,
+            entity_code=initiative.code,
+            action="arquivamento",
+            actor=actor,
+            summary=f"Iniciativa {initiative.code} arquivada.",
+            metadata={"reason": reason},
+        )
         return initiative

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from innovation_governance_hub.exceptions import ValidationError
 from innovation_governance_hub.persistence.models import Initiative
+from innovation_governance_hub.services.audit_service import AuditService
 
 
 class InitiativeService:
@@ -31,6 +32,15 @@ class InitiativeService:
         initiative = Initiative(**values)
         self.session.add(initiative)
         self.session.flush()
+        AuditService(self.session).record(
+            event_type="initiative.created",
+            entity_type="Iniciativa",
+            entity_id=initiative.id,
+            entity_code=initiative.code,
+            action="criação",
+            actor=str(data.get("actor", "Sistema")),
+            summary=f"Iniciativa {initiative.code} criada.",
+        )
         return initiative
 
     def update(self, initiative_id: int, data: dict[str, object]) -> Initiative:
@@ -38,10 +48,25 @@ class InitiativeService:
         if not initiative:
             raise ValidationError("Iniciativa não encontrada.")
         values = self._validate(data)
+        changes = {}
         for key, value in values.items():
             if key not in {"code", "current_stage"}:
+                previous = getattr(initiative, key)
+                if previous != value:
+                    changes[key] = {"before": previous, "after": value}
                 setattr(initiative, key, value)
         initiative.last_activity_at = datetime.now()
+        if changes:
+            AuditService(self.session).record(
+                event_type="initiative.updated",
+                entity_type="Iniciativa",
+                entity_id=initiative.id,
+                entity_code=initiative.code,
+                action="edição",
+                actor=str(data.get("actor", "Sistema")),
+                summary=f"Iniciativa {initiative.code} atualizada.",
+                changes=changes,
+            )
         return initiative
 
     @staticmethod
@@ -52,6 +77,6 @@ class InitiativeService:
         planned = Decimal(str(data.get("planned_cost", 0)))
         if planned < 0:
             raise ValidationError("O custo planejado não pode ser negativo.")
-        values = dict(data)
+        values = {key: value for key, value in data.items() if key != "actor"}
         values["planned_cost"] = planned
         return values

@@ -176,6 +176,24 @@ class AIUseCase(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now, onupdate=now)
 
 
+class AIGovernanceDecision(Base):
+    __tablename__ = "ai_governance_decisions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ai_use_case_id: Mapped[int] = mapped_column(
+        ForeignKey("ai_use_cases.id", ondelete="CASCADE"), index=True
+    )
+    previous_status: Mapped[str] = mapped_column(String(40))
+    new_status: Mapped[str] = mapped_column(String(40))
+    risk_level: Mapped[str] = mapped_column(String(30))
+    governance_approved: Mapped[bool] = mapped_column(Boolean)
+    policy_accepted: Mapped[bool] = mapped_column(Boolean)
+    responsible: Mapped[str] = mapped_column(String(120))
+    justification: Mapped[str] = mapped_column(Text)
+    restrictions: Mapped[str] = mapped_column(Text, default="")
+    next_review_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    decided_at: Mapped[datetime] = mapped_column(DateTime, default=now, index=True)
+
+
 class AnnualBudget(Base):
     __tablename__ = "annual_budgets"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -222,3 +240,24 @@ class NotificationLog(Base):
     error_message: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now, onupdate=now)
+    lifecycle_status: Mapped[str] = mapped_column(String(30), default="Novo", index=True)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    acknowledged_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    resolved_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    resolution_note: Mapped[str] = mapped_column(Text, default="")
+
+
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(80), index=True)
+    entity_type: Mapped[str] = mapped_column(String(50), index=True)
+    entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    entity_code: Mapped[str] = mapped_column(String(50), default="", index=True)
+    action: Mapped[str] = mapped_column(String(50), index=True)
+    actor: Mapped[str] = mapped_column(String(120))
+    summary: Mapped[str] = mapped_column(String(500))
+    changes_json: Mapped[str] = mapped_column(Text, default="{}")
+    metadata_json: Mapped[str] = mapped_column(Text, default="{}")
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, default=now, index=True)
