@@ -189,7 +189,7 @@ def seed() -> dict[str, int]:
                             governance_approved=False,
                             estimated_users=180,
                             active_users=142,
-                            notes="Uso cresceu antes da conclusão da avaliação de governança.",
+                            notes="Dados fictícios de acompanhamento do ciclo de avaliação.",
                         )
                     )
                     continue
@@ -220,7 +220,7 @@ def seed() -> dict[str, int]:
                         policy_accepted=approved,
                         governance_approved=approved,
                         estimated_users=100 + idx * 10,
-                        active_users=min(100 + idx * 10, idx * 14),
+                        active_users=min(100 + idx * 10, idx * 11),
                         notes="Justificativa fictícia para demonstração.",
                     )
                 )

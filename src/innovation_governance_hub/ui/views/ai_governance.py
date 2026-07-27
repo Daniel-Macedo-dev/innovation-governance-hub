@@ -164,7 +164,7 @@ def ai_governance() -> None:
     metrics[3].metric(
         "Adoção",
         f"{detail['adoption']:.1f}%",
-        help="Usuários ativos ÷ usuários estimados. Adoção alta não substitui a avaliação de risco.",
+        help="Cálculo: usuários ativos ÷ usuários estimados × 100.",
     )
     st.write(
         f"Responsável: **{detail['owner'] or '—'}** · Área: {detail['responsible_area']} · "
