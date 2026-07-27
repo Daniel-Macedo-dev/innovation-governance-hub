@@ -104,6 +104,60 @@ class BudgetService:
             if self.initiative_actual(i.id) > i.planned_cost
         ]
 
+    def set_annual_budget(
+        self, year: int, planned_amount: Decimal, notes: str, actor: str
+    ) -> AnnualBudget:
+        if planned_amount <= 0:
+            raise ValidationError("O orçamento anual deve ser maior que zero.")
+        budget = self.session.scalar(select(AnnualBudget).where(AnnualBudget.year == year))
+        created = budget is None
+        previous = budget.planned_amount if budget else None
+        if budget is None:
+            budget = AnnualBudget(year=year, planned_amount=planned_amount, notes=notes.strip())
+            self.session.add(budget)
+        else:
+            budget.planned_amount = planned_amount
+            budget.notes = notes.strip()
+        self.session.flush()
+        AuditService(self.session).record(
+            event_type="budget.defined" if created else "budget.updated",
+            entity_type="OrcamentoAnual",
+            entity_id=budget.id,
+            action="definição" if created else "edição",
+            actor=actor,
+            summary=f"Orçamento anual de {year} definido.",
+            changes={"planned_amount": {"before": previous, "after": planned_amount}},
+        )
+        return budget
+
+    def category_totals(self, year: int) -> list[dict[str, object]]:
+        rows = self.session.execute(
+            select(
+                Expense.category,
+                Expense.financial_status,
+                func.coalesce(func.sum(Expense.amount), 0),
+            )
+            .where(func.extract("year", Expense.competence_date) == year)
+            .group_by(Expense.category, Expense.financial_status)
+        ).all()
+        by_category: dict[str, dict[str, Decimal]] = {}
+        for category, status, amount in rows:
+            entry = by_category.setdefault(
+                category, {"Realizado": Decimal("0"), "Previsto": Decimal("0")}
+            )
+            entry[str(status)] = Decimal(amount or 0)
+        return [
+            {
+                "category": category,
+                "actual": values["Realizado"],
+                "forecast": values["Previsto"],
+                "total": values["Realizado"] + values["Previsto"],
+            }
+            for category, values in sorted(
+                by_category.items(), key=lambda pair: pair[1]["Realizado"], reverse=True
+            )
+        ]
+
     def save_expense(self, data: dict[str, object], expense_id: int | None = None) -> Expense:
         amount = Decimal(str(data.get("amount", 0)))
         if amount <= 0:

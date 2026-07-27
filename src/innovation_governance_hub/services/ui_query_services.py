@@ -8,18 +8,21 @@ from sqlalchemy.orm import Session
 from innovation_governance_hub.domain.clock import business_date
 from innovation_governance_hub.persistence.models import (
     ActionItem,
+    AIGovernanceDecision,
     AIUseCase,
     AuditEvent,
     Expense,
     Initiative,
     InitiativeAssessment,
-    InitiativeGateCheck,
+    InitiativeDocument,
     InitiativeIndicator,
     Meeting,
+    MeetingDecision,
     NotificationLog,
 )
 from innovation_governance_hub.services.ai_governance_service import adoption, review_overdue
 from innovation_governance_hub.services.budget_service import BudgetService
+from innovation_governance_hub.services.gate_service import GateService
 from innovation_governance_hub.services.indicator_service import IndicatorService
 from innovation_governance_hub.services.prioritization_service import PrioritizationService
 
@@ -144,31 +147,38 @@ class InitiativeDetailsQueryService:
                 .order_by(AuditEvent.occurred_at.desc())
             ).all()
         )
-        checks = list(
+        documents = list(
             self.session.scalars(
-                select(InitiativeGateCheck).where(
-                    InitiativeGateCheck.initiative_id == initiative_id
-                )
+                select(InitiativeDocument)
+                .where(InitiativeDocument.initiative_id == initiative_id)
+                .order_by(InitiativeDocument.uploaded_at.desc())
             ).all()
         )
         return {
-            "initiative": _row(
-                item,
-                "id",
-                "code",
-                "name",
-                "problem_description",
-                "proposed_solution",
-                "requesting_area",
-                "owner",
-                "priority",
-                "strategic_theme",
-                "current_stage",
-                "status",
-                "deadline",
-                "planned_cost",
-                "expected_benefit",
-            ),
+            "initiative": {
+                **_row(
+                    item,
+                    "id",
+                    "code",
+                    "name",
+                    "problem_description",
+                    "proposed_solution",
+                    "requesting_area",
+                    "owner",
+                    "priority",
+                    "expected_impact_level",
+                    "expected_impact_description",
+                    "complexity",
+                    "strategic_theme",
+                    "current_stage",
+                    "status",
+                    "deadline",
+                    "planned_cost",
+                    "expected_benefit",
+                    "notes",
+                ),
+                "actual_cost": BudgetService(self.session).initiative_actual(initiative_id),
+            },
             "assessment": _row(
                 assessment,
                 "strategic_alignment",
@@ -218,7 +228,19 @@ class InitiativeDetailsQueryService:
             "events": [
                 _row(value, "summary", "actor", "occurred_at", "event_type") for value in events
             ],
-            "checks": [_row(value, "id", "completed", "evidence") for value in checks],
+            "criteria": GateService(self.session).criteria_status(item),
+            "documents": [
+                _row(
+                    value,
+                    "id",
+                    "document_type",
+                    "original_filename",
+                    "description",
+                    "uploaded_at",
+                    "uploaded_by",
+                )
+                for value in documents
+            ],
         }
 
 
@@ -249,6 +271,58 @@ class AIGovernanceQueryService:
             for item in self.session.scalars(select(AIUseCase).order_by(AIUseCase.code)).all()
         ]
 
+    def detail(self, use_case_id: int) -> dict[str, Any] | None:
+        item = self.session.get(AIUseCase, use_case_id)
+        if not item:
+            return None
+        decisions = self.session.scalars(
+            select(AIGovernanceDecision)
+            .where(AIGovernanceDecision.ai_use_case_id == use_case_id)
+            .order_by(AIGovernanceDecision.decided_at.desc())
+        ).all()
+        return {
+            **_row(
+                item,
+                "id",
+                "code",
+                "name",
+                "responsible_area",
+                "objective",
+                "ai_tool",
+                "model_or_provider",
+                "data_description",
+                "uses_personal_data",
+                "risk_level",
+                "risk_mitigation",
+                "expected_impact",
+                "evaluation_status",
+                "owner",
+                "next_review_date",
+                "policy_accepted",
+                "governance_approved",
+                "estimated_users",
+                "active_users",
+                "notes",
+            ),
+            "adoption": adoption(item),
+            "review_overdue": review_overdue(item),
+            "decisions": [
+                _row(
+                    decision,
+                    "previous_status",
+                    "new_status",
+                    "risk_level",
+                    "governance_approved",
+                    "responsible",
+                    "justification",
+                    "restrictions",
+                    "next_review_date",
+                    "decided_at",
+                )
+                for decision in decisions
+            ],
+        }
+
 
 class BudgetQueryService:
     def __init__(self, session: Session) -> None:
@@ -259,8 +333,24 @@ class BudgetQueryService:
         expenses = self.session.scalars(
             select(Expense).order_by(Expense.competence_date.desc())
         ).all()
+        initiatives = {item.id: item for item in self.session.scalars(select(Initiative)).all()}
+        over_budget = [
+            {
+                "code": item.code,
+                "name": item.name,
+                "planned_cost": item.planned_cost,
+                "actual_cost": service.initiative_actual(item.id),
+            }
+            for item in service.over_budget()
+        ]
         return {
             "projection": service.projection(year, business_date()),
+            "categories": service.category_totals(year),
+            "over_budget": over_budget,
+            "initiatives": [
+                {"id": item.id, "code": item.code, "name": item.name}
+                for item in sorted(initiatives.values(), key=lambda value: value.code)
+            ],
             "expenses": [
                 _row(
                     item,
@@ -286,6 +376,7 @@ class MeetingQueryService:
     def load(self) -> dict[str, Any]:
         meetings = self.session.scalars(select(Meeting).order_by(Meeting.meeting_date.desc())).all()
         actions = self.session.scalars(select(ActionItem).order_by(ActionItem.deadline)).all()
+        decisions = self.session.scalars(select(MeetingDecision)).all()
         return {
             "meetings": [
                 _row(
@@ -295,10 +386,12 @@ class MeetingQueryService:
                     "title",
                     "meeting_date",
                     "participants",
+                    "minutes_text",
                     "executive_summary",
                 )
                 for item in meetings
             ],
+            "decisions": [_row(item, "meeting_id", "description") for item in decisions],
             "actions": [
                 _row(
                     item,

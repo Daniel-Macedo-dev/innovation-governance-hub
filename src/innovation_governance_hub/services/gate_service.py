@@ -82,6 +82,41 @@ class GateService:
                 missing.append(criterion.name)
         return missing
 
+    def criteria_status(self, initiative: Initiative) -> list[dict[str, object]]:
+        definitions = self.session.scalars(
+            select(GateCriterionDefinition)
+            .where(
+                GateCriterionDefinition.stage == initiative.current_stage,
+                GateCriterionDefinition.active.is_(True),
+            )
+            .order_by(GateCriterionDefinition.display_order)
+        ).all()
+        checks = {
+            check.criterion_definition_id: check
+            for check in self.session.scalars(
+                select(InitiativeGateCheck).where(
+                    InitiativeGateCheck.initiative_id == initiative.id
+                )
+            ).all()
+        }
+        rows: list[dict[str, object]] = []
+        for criterion in definitions:
+            check = checks.get(criterion.id)
+            automatic = criterion.evaluation_type == EvaluationType.AUTOMATIC
+            rows.append(
+                {
+                    "id": criterion.id,
+                    "name": criterion.name,
+                    "evaluation_type": criterion.evaluation_type,
+                    "mandatory": criterion.mandatory,
+                    "completed": self._automatic(initiative, criterion.code)
+                    if automatic
+                    else bool(check and check.completed),
+                    "evidence": check.evidence if check else "",
+                }
+            )
+        return rows
+
     def set_manual_check(
         self, initiative_id: int, criterion_id: int, completed: bool, evidence: str, actor: str
     ) -> InitiativeGateCheck:

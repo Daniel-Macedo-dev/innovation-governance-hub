@@ -8,8 +8,68 @@ from innovation_governance_hub.ui.navigation import INITIATIVE, go
 def meetings() -> None:
     with app_services(read_only=True) as services:
         data = services.meeting_query.load()
+        initiatives = services.pipeline_query.list()
+    initiative_options = {
+        f"{item['code']} — {item['name']}": int(str(item["id"])) for item in initiatives
+    }
+    with st.expander("Registrar reunião"):
+        if not initiative_options:
+            st.info("Cadastre uma iniciativa antes de registrar reuniões.")
+        else:
+            with st.form("new_meeting"):
+                initiative_label = st.selectbox("Iniciativa", list(initiative_options))
+                title = st.text_input("Título da reunião")
+                meeting_date = st.date_input("Data da reunião")
+                participants = st.text_input("Participantes (separados por ponto e vírgula)")
+                minutes_text = st.text_area("Ata da reunião")
+                executive_summary = st.text_area(
+                    "Resumo executivo (manual, opcional)",
+                    help="Escrito e editável por você; não há geração automática.",
+                )
+                decisions_text = st.text_area("Decisões (uma por linha)")
+                actor = st.text_input("Registrado por", value="Usuário local")
+                if st.form_submit_button("Registrar reunião"):
+                    try:
+                        with app_services() as services:
+                            services.meetings.create(
+                                initiative_options[initiative_label],
+                                title,
+                                meeting_date,
+                                participants,
+                                minutes_text,
+                                executive_summary,
+                                [
+                                    line.strip()
+                                    for line in decisions_text.splitlines()
+                                    if line.strip()
+                                ],
+                                [],
+                                actor,
+                            )
+                        st.success("Reunião registrada.")
+                        st.rerun()
+                    except DomainError as exc:
+                        st.error(str(exc))
     st.subheader("Reuniões registradas")
-    st.dataframe(data["meetings"], use_container_width=True, hide_index=True)
+    decisions_by_meeting: dict[int, list[str]] = {}
+    for decision in data["decisions"]:
+        decisions_by_meeting.setdefault(int(str(decision["meeting_id"])), []).append(
+            str(decision["description"])
+        )
+    if not data["meetings"]:
+        st.info("Nenhuma reunião registrada.")
+    for meeting in data["meetings"]:
+        with st.expander(f"{meeting['meeting_date']} — {meeting['title']}"):
+            st.caption(f"Participantes: {meeting['participants'] or '—'}")
+            if meeting["executive_summary"]:
+                st.markdown(f"**Resumo executivo:** {meeting['executive_summary']}")
+            st.markdown("**Ata:**")
+            st.write(meeting["minutes_text"])
+            recorded = decisions_by_meeting.get(int(str(meeting["id"])), [])
+            if recorded:
+                st.markdown("**Decisões:**")
+                for description in recorded:
+                    st.write(f"• {description}")
     st.subheader("Pendências")
     if data["meetings"]:
         meetings_by_label = {
