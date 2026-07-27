@@ -347,7 +347,9 @@ def test_persist_is_atomic_when_database_rejects_rows(session):
         actions=["Criar", "Criar"],
         targets=[None, None],
     )
-    with pytest.raises(Exception):
+    from sqlalchemy.exc import IntegrityError
+
+    with pytest.raises(IntegrityError):
         imports.persist(duplicated_codes, "Teste", "corrompido.xlsx")
     assert session.scalar(select(func.count()).select_from(Initiative)) == 0
     assert session.scalar(select(func.count()).select_from(ImportBatch)) == 0
