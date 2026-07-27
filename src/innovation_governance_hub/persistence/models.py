@@ -45,6 +45,45 @@ class Initiative(Base):
     last_activity_at: Mapped[datetime] = mapped_column(DateTime, default=now, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now, onupdate=now)
+    strategic_theme: Mapped[str] = mapped_column(String(120), default="")
+
+
+class InitiativeAssessment(Base):
+    __tablename__ = "initiative_assessments"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    initiative_id: Mapped[int] = mapped_column(
+        ForeignKey("initiatives.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    strategic_alignment: Mapped[int] = mapped_column(Integer)
+    expected_value: Mapped[int] = mapped_column(Integer)
+    urgency: Mapped[int] = mapped_column(Integer)
+    confidence: Mapped[int] = mapped_column(Integer)
+    complexity: Mapped[int] = mapped_column(Integer)
+    execution_risk: Mapped[int] = mapped_column(Integer)
+    rationale: Mapped[str] = mapped_column(Text)
+    assessed_by: Mapped[str] = mapped_column(String(120))
+    assessed_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now, onupdate=now)
+
+
+class InitiativeIndicator(Base):
+    __tablename__ = "initiative_indicators"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    initiative_id: Mapped[int] = mapped_column(
+        ForeignKey("initiatives.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    unit: Mapped[str] = mapped_column(String(40))
+    baseline_value: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    target_value: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    current_value: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    direction: Mapped[str] = mapped_column(String(30))
+    owner: Mapped[str] = mapped_column(String(120))
+    measurement_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now, onupdate=now)
 
 
 class GateCriterionDefinition(Base):

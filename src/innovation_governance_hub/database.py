@@ -36,6 +36,17 @@ def init_db(target: Engine | None = None) -> None:
 
     selected = target or engine
     Base.metadata.create_all(selected)
+    if selected.dialect.name == "sqlite" and inspect(selected).has_table("initiatives"):
+        initiative_columns = {
+            column["name"] for column in inspect(selected).get_columns("initiatives")
+        }
+        if "strategic_theme" not in initiative_columns:
+            with selected.begin() as connection:
+                connection.execute(
+                    text(
+                        "ALTER TABLE initiatives ADD COLUMN strategic_theme VARCHAR(120) NOT NULL DEFAULT ''"
+                    )
+                )
     if selected.dialect.name == "sqlite" and inspect(selected).has_table("notification_logs"):
         existing = {column["name"] for column in inspect(selected).get_columns("notification_logs")}
         additions = {
