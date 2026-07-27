@@ -4,6 +4,7 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from innovation_governance_hub.database import SessionLocal, init_db
+from innovation_governance_hub.domain.clock import business_date
 from innovation_governance_hub.domain.enums import (
     AIStatus,
     FinancialStatus,
@@ -106,10 +107,10 @@ def seed() -> dict[str, int]:
                         expected_impact_level=["Baixo", "Médio", "Alto", "Muito alto"][idx % 4],
                         expected_impact_description="Reduzir tempo operacional em cenário demonstrativo.",
                         complexity=["Baixa", "Média", "Alta"][idx % 3],
-                        created_date=date.today() - timedelta(days=150 + idx),
-                        deadline=date.today() - timedelta(days=idx)
+                        created_date=business_date() - timedelta(days=150 + idx),
+                        deadline=business_date() - timedelta(days=idx)
                         if idx % 4 == 0
-                        else date.today() + timedelta(days=30 + idx),
+                        else business_date() + timedelta(days=30 + idx),
                         status=status,
                         current_stage=stage,
                         planned_cost=Decimal(15000 + idx * 4000),
@@ -121,10 +122,12 @@ def seed() -> dict[str, int]:
                 )
         session.flush()
         initiatives = session.scalars(select(Initiative).order_by(Initiative.id)).all()
-        if not session.scalar(select(AnnualBudget).where(AnnualBudget.year == date.today().year)):
+        if not session.scalar(
+            select(AnnualBudget).where(AnnualBudget.year == business_date().year)
+        ):
             session.add(
                 AnnualBudget(
-                    year=date.today().year,
+                    year=business_date().year,
                     planned_amount=Decimal("1200000"),
                     notes="Orçamento fictício demonstrativo.",
                 )
@@ -142,7 +145,7 @@ def seed() -> dict[str, int]:
                     session.add(
                         Expense(
                             initiative_id=initiatives[(month + idx) % len(initiatives)].id,
-                            competence_date=date(date.today().year, month, 10),
+                            competence_date=date(business_date().year, month, 10),
                             category=[
                                 "Ferramentas e software",
                                 "Fornecedores",
@@ -155,7 +158,7 @@ def seed() -> dict[str, int]:
                             tool_name=f"Ferramenta Demo {idx}",
                             cost_type="Recorrente" if idx % 2 else "Pontual",
                             financial_status=FinancialStatus.ACTUAL
-                            if month <= date.today().month
+                            if month <= business_date().month
                             else FinancialStatus.FORECAST,
                             amount=amount,
                         )
@@ -184,9 +187,9 @@ def seed() -> dict[str, int]:
                         expected_impact="Ganho potencial não comprovado.",
                         evaluation_status=AIStatus.APPROVED if approved else AIStatus.EVALUATING,
                         owner=f"Responsável IA {idx}",
-                        next_review_date=date.today() - timedelta(days=idx)
+                        next_review_date=business_date() - timedelta(days=idx)
                         if idx % 4 == 0
-                        else date.today() + timedelta(days=60),
+                        else business_date() + timedelta(days=60),
                         policy_accepted=approved,
                         governance_approved=approved,
                         estimated_users=100 + idx * 10,
@@ -199,7 +202,7 @@ def seed() -> dict[str, int]:
             meeting = Meeting(
                 initiative_id=first.id,
                 title="Kick-off demonstrativo",
-                meeting_date=date.today() - timedelta(days=20),
+                meeting_date=business_date() - timedelta(days=20),
                 participants="Ana Demo; Bruno Exemplo",
                 minutes_text="Foi decidido validar o protótipo. Ana deve preparar métricas até 15/08/2026.",
                 executive_summary="Validação do protótipo e definição de métricas.",
@@ -219,7 +222,7 @@ def seed() -> dict[str, int]:
                     initiative_id=first.id,
                     description="Preparar métricas do piloto.",
                     owner="Ana Demo",
-                    deadline=date.today() - timedelta(days=2),
+                    deadline=business_date() - timedelta(days=2),
                     status="Aberta",
                 )
             )
