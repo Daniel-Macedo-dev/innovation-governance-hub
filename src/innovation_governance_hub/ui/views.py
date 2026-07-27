@@ -50,6 +50,10 @@ from innovation_governance_hub.ui.formatting import br_date, brl, percent
 
 
 def overview() -> None:
+    st.markdown(
+        '<style>[data-testid="stMetricValue"]{font-size:1.75rem}</style>',
+        unsafe_allow_html=True,
+    )
     with SessionLocal() as s:
         initiatives = s.scalars(select(Initiative)).all()
         cases = s.scalars(select(AIUseCase)).all()
@@ -73,10 +77,10 @@ def overview() -> None:
             ("IA aprovada", sum(c.evaluation_status == "Aprovado" for c in cases)),
             ("Revisões vencidas", sum(review_overdue(c) for c in cases)),
         ]
-        for col, (label, value) in zip(st.columns(5), values[:5], strict=True):
-            col.metric(label, value)
-        for col, (label, value) in zip(st.columns(5), values[5:], strict=True):
-            col.metric(label, value)
+        for start in range(0, len(values), 4):
+            row = values[start : start + 4]
+            for col, (label, value) in zip(st.columns(len(row)), row, strict=True):
+                col.metric(label, value)
         tab1, tab2, tab3 = st.tabs(["Portfólio", "Financeiro", "Governança de IA"])
         with tab1:
             frame = pd.DataFrame(
@@ -183,7 +187,9 @@ def pipeline() -> None:
                         )
                     )
                     st.success(f"{code} cadastrada.")
-        filters = st.multiselect("Estágio", [x.value for x in Stage])
+        filters = st.multiselect(
+            "Estágio", [x.value for x in Stage], placeholder="Selecione os estágios"
+        )
         shown = [i for i in items if not filters or i.current_stage in filters]
         st.dataframe(
             [
@@ -241,7 +247,7 @@ def initiative_details() -> None:
                     complexity_options,
                     index=complexity_options.index(selected.complexity),
                 )
-                deadline = st.date_input("Prazo", value=selected.deadline)
+                deadline = st.date_input("Prazo", value=selected.deadline, format="DD/MM/YYYY")
                 planned = st.number_input(
                     "Custo planejado", min_value=0.0, value=float(selected.planned_cost)
                 )
@@ -363,7 +369,22 @@ def initiative_details() -> None:
         with tabs[3]:
             events = AuditService(s).timeline("Iniciativa", selected.id)
             event_types = sorted({event.event_type for event in events})
-            chosen = st.multiselect("Tipos de evento", event_types, default=event_types)
+            event_type_labels = {
+                "initiative.created": "Iniciativa criada",
+                "initiative.updated": "Iniciativa alterada",
+                "expense.created": "Despesa registrada",
+                "meeting.created": "Reunião registrada",
+                "document.uploaded": "Documento enviado",
+                "gate.blocked": "Gate bloqueado",
+                "gate.advanced": "Gate avançado",
+                "initiative.archived": "Iniciativa arquivada",
+            }
+            chosen = st.multiselect(
+                "Tipos de evento",
+                event_types,
+                default=event_types,
+                format_func=lambda value: event_type_labels.get(value, value),
+            )
             newest = st.toggle("Mais recentes primeiro", value=True)
             filtered = [event for event in events if event.event_type in chosen]
             filtered.sort(key=lambda event: (event.occurred_at, event.id), reverse=newest)
@@ -480,7 +501,9 @@ def ai_governance() -> None:
             justification = st.text_area("Justificativa da decisão")
             restrictions = st.text_area("Restrições aplicáveis")
             next_review = st.date_input(
-                "Próxima revisão", value=case.next_review_date or date.today()
+                "Próxima revisão",
+                value=case.next_review_date or date.today(),
+                format="DD/MM/YYYY",
             )
             if st.button("Atualizar avaliação"):
                 try:
@@ -529,24 +552,23 @@ def budget() -> None:
     with SessionLocal.begin() as s:
         year = st.number_input("Ano", 2020, 2100, date.today().year)
         totals = BudgetService(s).projection(year)
-        for col, item in zip(
-            st.columns(4),
-            [
-                ("Planejado", totals["planned"]),
-                ("Realizado", totals["actual"]),
-                ("Previsto", totals["forecast"]),
-                ("Comprometido", totals["committed"]),
-            ],
-            strict=True,
-        ):
-            col.metric(item[0], brl(item[1]))
-        forecast_cols = st.columns(4)
+        primary_metrics = [
+            ("Planejado", totals["planned"]),
+            ("Realizado", totals["actual"]),
+            ("Previsto", totals["forecast"]),
+            ("Comprometido", totals["committed"]),
+        ]
+        for start in range(0, len(primary_metrics), 2):
+            for col, item in zip(st.columns(2), primary_metrics[start : start + 2], strict=True):
+                col.metric(item[0], brl(item[1]))
+        forecast_cols = st.columns(2)
         forecast_cols[0].metric(
             "Variação", brl(totals["variance"]), percent(totals["variance_percent"])
         )
         forecast_cols[1].metric("Saldo após compromissos", brl(totals["balance_after_commitments"]))
-        forecast_cols[2].metric("Projeção até dezembro", brl(totals["year_end_projection"]))
-        forecast_cols[3].metric(
+        forecast_cols = st.columns(2)
+        forecast_cols[0].metric("Projeção até dezembro", brl(totals["year_end_projection"]))
+        forecast_cols[1].metric(
             "Média dos últimos 3 meses", brl(totals["recent_three_month_average"])
         )
         st.caption(
@@ -589,6 +611,7 @@ def budget() -> None:
             competence = st.date_input(
                 "Data de competência",
                 value=expense.competence_date if expense else date.today(),
+                format="DD/MM/YYYY",
             )
             linked = st.selectbox(
                 "Iniciativa (opcional)",
@@ -806,7 +829,21 @@ def excel_io() -> None:
                     preview = preview_expenses(content, initiatives)
             if preview.valid:
                 st.success(f"Validação concluída: {len(preview.rows)} linhas prontas.")
-                st.dataframe(pd.DataFrame(preview.rows).head(50), use_container_width=True)
+                preview_labels = {
+                    "code": "Código",
+                    "name": "Nome",
+                    "problem_description": "Descrição do problema",
+                    "proposed_solution": "Solução proposta",
+                    "requesting_area": "Área solicitante",
+                    "owner": "Responsável",
+                    "planned_cost": "Custo planejado",
+                    "amount": "Valor",
+                    "competence_date": "Data de competência",
+                }
+                st.dataframe(
+                    pd.DataFrame(preview.rows).head(50).rename(columns=preview_labels),
+                    use_container_width=True,
+                )
                 if st.button("Confirmar importação", type="primary"):
                     with SessionLocal.begin() as session:
                         imported = persist_preview(session, preview)
@@ -843,10 +880,21 @@ def automations() -> None:
             alerts = AutomationService(s).run()
             st.success(f"{len(alerts)} alertas detectados.")
         logs = s.scalars(select(NotificationLog).order_by(NotificationLog.detected_at.desc())).all()
+        type_labels = {
+            "pendencia_vencida": "Pendência vencida",
+            "revisao_ia_vencida": "Revisão de IA vencida",
+            "ia_risco_sem_aprovacao": "Risco de IA sem aprovação",
+            "gate_pendente": "Gate pendente",
+            "projeto_parado": "Projeto sem atividade",
+            "projeto_atrasado": "Projeto atrasado",
+            "orcamento_excedido": "Orçamento excedido",
+            "orcamento_proximo": "Orçamento próximo do limite",
+            "documentacao_pendente": "Documentação pendente",
+        }
         st.dataframe(
             [
                 {
-                    "Tipo": x.notification_type,
+                    "Tipo": type_labels.get(x.notification_type, x.notification_type),
                     "Severidade": x.severity,
                     "Título": x.title,
                     "Entrega": x.delivery_status,
