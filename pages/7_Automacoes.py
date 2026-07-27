@@ -1,5 +1,5 @@
-from innovation_governance_hub.ui.bootstrap import bootstrap
+from innovation_governance_hub.ui.bootstrap import page_header
 from innovation_governance_hub.ui.views.automations import automations
 
-bootstrap("Automações")
+page_header("Automações")
 automations()

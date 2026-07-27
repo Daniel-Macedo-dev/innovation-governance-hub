@@ -1,5 +1,3 @@
-from innovation_governance_hub.ui.bootstrap import bootstrap
-from innovation_governance_hub.ui.views.overview import overview
+from innovation_governance_hub.ui.bootstrap import run_app
 
-bootstrap("Visão Geral")
-overview()
+run_app()
