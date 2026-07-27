@@ -11,6 +11,33 @@ def meetings() -> None:
     st.subheader("Reuniões registradas")
     st.dataframe(data["meetings"], use_container_width=True, hide_index=True)
     st.subheader("Pendências")
+    if data["meetings"]:
+        meetings_by_label = {
+            f"{item['meeting_date']} — {item['title']}": item for item in data["meetings"]
+        }
+        with st.expander("Cadastrar pendência"):
+            with st.form("new_action"):
+                meeting_label = st.selectbox("Reunião vinculada", meetings_by_label)
+                description = st.text_input("Descrição da pendência")
+                owner = st.text_input("Responsável pela pendência")
+                deadline = st.date_input("Prazo da pendência")
+                actor = st.text_input("Registrado por", value="Usuário local")
+                if st.form_submit_button("Cadastrar pendência"):
+                    meeting = meetings_by_label[meeting_label]
+                    try:
+                        with app_services() as services:
+                            services.meetings.create_action(
+                                int(str(meeting["id"])),
+                                int(str(meeting["initiative_id"])),
+                                description,
+                                owner,
+                                deadline,
+                                actor,
+                            )
+                        st.success("Pendência cadastrada.")
+                        st.rerun()
+                    except DomainError as exc:
+                        st.error(str(exc))
     statuses = st.multiselect(
         "Status",
         ["Aberta", "Em andamento", "Concluída", "Cancelada"],

@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import streamlit as st
 
 from innovation_governance_hub.config import get_settings
@@ -21,12 +23,19 @@ def automations() -> None:
     statuses = st.multiselect("Status", ["Novo", "Reconhecido", "Resolvido", "Ignorado"])
     severities = st.multiselect("Severidade", sorted({str(item["severity"]) for item in items}))
     types = st.multiselect("Tipo", sorted({str(item["notification_type"]) for item in items}))
+    entities = st.multiselect("Entidade", sorted({str(item["entity_type"]) for item in items}))
+    period = st.selectbox(
+        "Período", (7, 15, 30, 90), index=2, format_func=lambda value: f"{value} dias"
+    )
+    cutoff = date.today() - timedelta(days=period)
     shown = [
         item
         for item in items
         if (not statuses or item["lifecycle_status"] in statuses)
         and (not severities or item["severity"] in severities)
         and (not types or item["notification_type"] in types)
+        and (not entities or item["entity_type"] in entities)
+        and item["detected_at"].date() >= cutoff
     ]
     counts = {
         status: sum(item["lifecycle_status"] == status for item in items)
@@ -35,6 +44,16 @@ def automations() -> None:
     columns = st.columns(4)
     for column, (status, count) in zip(columns, counts.items(), strict=True):
         column.metric(status, count)
+    severity_counts = {
+        severity: sum(item["severity"] == severity for item in items)
+        for severity in sorted({str(item["severity"]) for item in items})
+    }
+    st.caption(
+        "Última execução local: "
+        + (str(max((item["detected_at"] for item in items), default="Sem execução")))
+        + " · "
+        + " · ".join(f"{severity}: {count}" for severity, count in severity_counts.items())
+    )
     for item in shown:
         with st.expander(f"{item['severity']} · {item['title']} · {item['lifecycle_status']}"):
             st.write(item["message"])

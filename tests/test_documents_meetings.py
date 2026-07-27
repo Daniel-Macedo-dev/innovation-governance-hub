@@ -6,7 +6,12 @@ import pytest
 from innovation_governance_hub.config import Settings
 from innovation_governance_hub.domain.schemas import MeetingSummaryResult
 from innovation_governance_hub.exceptions import ValidationError
-from innovation_governance_hub.persistence.models import ActionItem, Initiative, MeetingDecision
+from innovation_governance_hub.persistence.models import (
+    ActionItem,
+    AuditEvent,
+    Initiative,
+    MeetingDecision,
+)
 from innovation_governance_hub.services.document_service import DocumentService
 from innovation_governance_hub.services.meeting_service import MeetingService
 
@@ -107,3 +112,32 @@ def test_meeting_rejects_incomplete_action(session):
             [],
             [{"description": "Ação", "owner": ""}],
         )
+
+
+def test_action_can_be_created_and_is_audited(session):
+    item = initiative()
+    session.add(item)
+    session.flush()
+    service = MeetingService(session)
+    meeting = service.create(
+        item.id,
+        "Revisão",
+        date.today(),
+        "Ana",
+        "Ata válida",
+        summary(),
+        [],
+        [],
+    )
+
+    action = service.create_action(
+        meeting.id,
+        item.id,
+        "Preparar evidências",
+        "Ana",
+        date.today(),
+        "Gestora",
+    )
+
+    assert action.status == "Aberta"
+    assert session.query(AuditEvent).filter_by(event_type="action.created").count() == 1

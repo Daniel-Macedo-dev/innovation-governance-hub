@@ -112,6 +112,42 @@ class MeetingService:
             )
         return action
 
+    def create_action(
+        self,
+        meeting_id: int,
+        initiative_id: int,
+        description: str,
+        owner: str,
+        deadline: date | None,
+        actor: str,
+    ) -> ActionItem:
+        if not self.session.get(Meeting, meeting_id):
+            raise ValidationError("Reunião não encontrada.")
+        if not self.session.get(Initiative, initiative_id):
+            raise ValidationError("Iniciativa não encontrada.")
+        if not description.strip() or not owner.strip():
+            raise ValidationError("Pendências exigem descrição e responsável.")
+        action = ActionItem(
+            meeting_id=meeting_id,
+            initiative_id=initiative_id,
+            description=description.strip(),
+            owner=owner.strip(),
+            deadline=deadline,
+            status="Aberta",
+        )
+        self.session.add(action)
+        self.session.flush()
+        AuditService(self.session).record(
+            event_type="action.created",
+            entity_type="Iniciativa",
+            entity_id=initiative_id,
+            action="pendência criada",
+            actor=actor,
+            summary=f"Pendência '{action.description}' criada.",
+            metadata={"action_id": action.id, "meeting_id": meeting_id},
+        )
+        return action
+
     def cancel_action(self, action_id: int, actor: str, reason: str) -> ActionItem:
         if not reason.strip():
             raise ValidationError("Cancelamento exige justificativa.")
