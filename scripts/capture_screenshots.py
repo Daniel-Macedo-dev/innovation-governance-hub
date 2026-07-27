@@ -305,9 +305,20 @@ def _capture_pages(page: Any, root: Path, output_dir: Path, port: int) -> None:
     _navigate(page, port, "Orcamento_e_Custos", "Orçamento e Custos")
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[6])
     _navigate(page, port, "Reunioes_e_Atas", "Reuniões e Atas")
+    page.get_by_text("Kick-off demonstrativo", exact=False).first.click()
+    page.get_by_text("Validação do protótipo e definição de métricas", exact=False).first.wait_for(
+        timeout=20_000
+    )
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[7])
     _navigate(page, port, "Importacao_e_Exportacao", "Importação e Exportação")
-    _capture(page, output_dir, EXPECTED_SCREENSHOTS[8])
+    page.locator('input[type="file"]').set_input_files(
+        root / "screenshots-temp" / "iniciativas.xlsx"
+    )
+    preview_marker = page.get_by_text("Prévia:", exact=False)
+    preview_marker.wait_for(timeout=30_000)
+    preview_marker.scroll_into_view_if_needed()
+    page.evaluate("window.scrollBy(0, -160)")
+    _capture(page, output_dir, EXPECTED_SCREENSHOTS[8], top=False)
     _navigate(page, port, "Automacoes", "Automações")
     page.get_by_role("button", name="Executar verificações").click()
     _wait_for_render(page)
