@@ -57,6 +57,10 @@ def executive_committee() -> None:
     operational_priority = st.multiselect(
         "Prioridade operacional", sorted({item.priority for item in priorities})
     )
+    st.markdown("**Indicadores de resultado**")
+    indicator_columns = st.columns(len(brief.indicators))
+    for column, metric in zip(indicator_columns, brief.indicators, strict=True):
+        column.metric(metric.label, metric.value)
     filtered = [
         item
         for item in priorities
@@ -120,6 +124,7 @@ def executive_committee() -> None:
             ],
             use_container_width=True,
             hide_index=True,
+            height=260,
         )
         options = {f"{item.code} — {item.name}": item.initiative_id for item in filtered}
         target = st.selectbox("Abrir iniciativa priorizada", options)
@@ -136,10 +141,6 @@ def executive_committee() -> None:
         st.subheader("Governança de IA")
         for metric in brief.ai:
             st.metric(metric.label, metric.value)
-    st.subheader("Indicadores de resultado")
-    indicator_columns = st.columns(len(brief.indicators))
-    for column, metric in zip(indicator_columns, brief.indicators, strict=True):
-        column.metric(metric.label, metric.value)
     st.subheader("Próximas ações")
     st.dataframe(
         [

@@ -14,9 +14,13 @@ Gestão de portfólio e gates, governança responsável de IA, priorização com
 
 O **Comitê de Inovação** consolida o que requer decisão, a saúde explicável do portfólio, pendências, mudanças recentes, projeção financeira, governança de IA e indicadores. Recomendações são determinísticas e nunca substituem aprovação humana.
 
-![Dashboard executivo do Innovation Governance Hub](docs/screenshots/01-dashboard-executivo.png)
+![Comitê de Inovação do Innovation Governance Hub](docs/screenshots/00-comite-inovacao.png)
 
 ## Demonstração visual
+
+| Priorização e indicadores | Dashboard executivo |
+| --- | --- |
+| ![Matriz Valor por Esforço e indicadores fictícios](docs/screenshots/10-priorizacao-indicadores.png) | ![Dashboard executivo do portfólio fictício](docs/screenshots/01-dashboard-executivo.png) |
 
 | Funil de inovação | Governança de IA |
 | --- | --- |
@@ -39,6 +43,9 @@ As imagens são capturas automatizadas da aplicação Streamlit real. Consulte [
 - Orçamento em `Decimal`, compromissos, variação e projeção simples até dezembro.
 - Importação transacional com fingerprint contra reprocessamento.
 - Alertas com reconhecimento, resolução, descarte justificado e reabertura auditada.
+- Pacote executivo Excel com dez abas, gerado em memória a partir da mesma leitura do Comitê.
+
+A priorização combina critérios explícitos de valor e esforço, preserva a prioridade operacional e posiciona as iniciativas em quatro quadrantes. Indicadores registram baseline, valor atual, meta, direção, responsável e data de medição; seus estados são calculados e explicados na interface.
 
 ## Stack e arquitetura
 

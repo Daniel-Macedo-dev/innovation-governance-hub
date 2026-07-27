@@ -16,22 +16,18 @@ import pandas as pd
 
 PORT_RANGE = range(8511, 8600)
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-EXPECTED_SCREENSHOTS = tuple(
-    f"{index:02d}-{slug}.png"
-    for index, slug in enumerate(
-        (
-            "dashboard-executivo",
-            "funil-inovacao",
-            "gate-bloqueado",
-            "timeline-iniciativa",
-            "governanca-ia",
-            "orcamento-projecao",
-            "resumo-reuniao",
-            "importacao-excel",
-            "automacoes-alertas",
-        ),
-        1,
-    )
+EXPECTED_SCREENSHOTS = (
+    "00-comite-inovacao.png",
+    "01-dashboard-executivo.png",
+    "02-funil-inovacao.png",
+    "03-gate-bloqueado.png",
+    "04-timeline-iniciativa.png",
+    "05-governanca-ia.png",
+    "06-orcamento-projecao.png",
+    "07-resumo-reuniao.png",
+    "08-importacao-excel.png",
+    "09-automacoes-alertas.png",
+    "10-priorizacao-indicadores.png",
 )
 
 
@@ -283,9 +279,19 @@ def _capture_pages(page: Any, root: Path, output_dir: Path, port: int) -> None:
     )
     page.get_by_role("heading", name="Visão Geral", exact=True).wait_for(timeout=20_000)
     page.locator(".js-plotly-plot").first.wait_for(state="visible", timeout=30_000)
-    _capture(page, output_dir, EXPECTED_SCREENSHOTS[0])
-    _navigate(page, port, "Funil_de_Inovacao", "Funil de Inovação")
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[1])
+    _navigate(page, port, "Comite_de_Inovacao", "Comitê de Inovação")
+    page.locator(".js-plotly-plot").first.wait_for(state="visible", timeout=30_000)
+    _capture(page, output_dir, EXPECTED_SCREENSHOTS[0])
+    prioritization_chart = page.locator(".js-plotly-plot").first
+    prioritization_chart.wait_for(state="visible", timeout=30_000)
+    page.evaluate("document.body.style.zoom='70%'")
+    prioritization_chart.scroll_into_view_if_needed()
+    page.evaluate("window.scrollBy(0, 80)")
+    _capture(page, output_dir, EXPECTED_SCREENSHOTS[10])
+    page.evaluate("document.body.style.zoom='100%'")
+    _navigate(page, port, "Funil_de_Inovacao", "Funil de Inovação")
+    _capture(page, output_dir, EXPECTED_SCREENSHOTS[2])
     _navigate(page, port, "Detalhes_da_Iniciativa", "Detalhes da Iniciativa")
     _select_initiative(page, "INI-003")
     page.get_by_role("tab", name="Gate atual").click()
@@ -294,34 +300,21 @@ def _capture_pages(page: Any, root: Path, output_dir: Path, port: int) -> None:
     blocked.wait_for(timeout=20_000)
     blocked.scroll_into_view_if_needed()
     page.evaluate("window.scrollBy(0, -180)")
-    _capture(page, output_dir, EXPECTED_SCREENSHOTS[2])
-    page.get_by_role("tab", name="Linha do tempo").click()
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[3])
-    _navigate(page, port, "Governanca_de_IA", "Governança de IA")
+    page.get_by_role("tab", name="Linha do tempo").click()
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[4])
-    _navigate(page, port, "Orcamento_e_Custos", "Orçamento e Custos")
+    _navigate(page, port, "Governanca_de_IA", "Governança de IA")
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[5])
-    _navigate(page, port, "Reunioes_e_Atas", "Reuniões e Atas")
-    _select_initiative(page, "INI-003")
-    page.get_by_label("Título", exact=True).fill("Comitê de priorização — demonstração")
-    page.get_by_label("Participantes", exact=True).fill("Marina Souza; Rafael Lima")
-    page.get_by_label("Ata", exact=True).fill(
-        "O comitê revisou o gate da iniciativa fictícia. Decidiu concluir as evidências "
-        "pendentes e revisar o orçamento. Marina atualizará o plano para o próximo encontro."
-    )
-    page.get_by_role("button", name="Gerar resumo para revisão").click()
-    page.get_by_text("Modo demonstração local", exact=False).wait_for(timeout=20_000)
+    _navigate(page, port, "Orcamento_e_Custos", "Orçamento e Custos")
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[6])
-    _navigate(page, port, "Importacao_e_Exportacao", "Importação e Exportação")
-    page.locator('input[type="file"]').set_input_files(
-        root / "screenshots-temp" / "iniciativas.xlsx"
-    )
-    page.get_by_text("Validação concluída", exact=False).wait_for(timeout=20_000)
+    _navigate(page, port, "Reunioes_e_Atas", "Reuniões e Atas")
     _capture(page, output_dir, EXPECTED_SCREENSHOTS[7])
+    _navigate(page, port, "Importacao_e_Exportacao", "Importação e Exportação")
+    _capture(page, output_dir, EXPECTED_SCREENSHOTS[8])
     _navigate(page, port, "Automacoes", "Automações")
     page.get_by_role("button", name="Executar verificações").click()
-    page.get_by_text("alertas detectados", exact=False).wait_for(timeout=20_000)
-    _capture(page, output_dir, EXPECTED_SCREENSHOTS[8])
+    _wait_for_render(page)
+    _capture(page, output_dir, EXPECTED_SCREENSHOTS[9])
 
 
 def main() -> int:
