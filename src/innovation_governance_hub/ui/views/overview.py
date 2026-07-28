@@ -4,9 +4,9 @@ import streamlit as st
 
 from innovation_governance_hub.domain.clock import business_date
 from innovation_governance_hub.services.ui_query_services import AreaDeliveryMetric
-from innovation_governance_hub.ui.components import metric_row
+from innovation_governance_hub.ui.components import Metric, metric_row
 from innovation_governance_hub.ui.context import app_services
-from innovation_governance_hub.ui.formatting import brl
+from innovation_governance_hub.ui.formatting import brl, compact_brl
 
 BAR_COLOR = "#3E6D9C"
 
@@ -38,8 +38,14 @@ def _active_by_area_chart(frame: pd.DataFrame, order: list[str]):
         category_orders={"Área": order},
         color_discrete_sequence=[BAR_COLOR],
     )
-    chart.update_traces(textposition="outside", hovertemplate="%{x}<br>Ativos: %{y}<extra></extra>")
-    chart.update_layout(yaxis_title="Projetos ativos", showlegend=False)
+    chart.update_traces(
+        textposition="outside",
+        cliponaxis=False,
+        hovertemplate="%{x}<br>Ativos: %{y}<extra></extra>",
+    )
+    chart.update_layout(
+        yaxis_title="Projetos ativos", showlegend=False, margin={"t": 70, "r": 20, "b": 60, "l": 55}
+    )
     return chart
 
 
@@ -56,13 +62,21 @@ def _on_time_by_area_chart(frame: pd.DataFrame, order: list[str]):
     )
     chart.update_traces(
         textposition="outside",
+        cliponaxis=False,
         hovertemplate=(
             "%{x}<br>Ativos: %{customdata[0]}<br>No prazo: %{customdata[1]}"
             "<br>Atrasados: %{customdata[2]}<br>Sem prazo: %{customdata[3]}"
             "<br>% no prazo: %{customdata[4]}<extra></extra>"
         ),
     )
-    chart.update_layout(yaxis_title="% dentro do prazo", yaxis_range=[0, 105], showlegend=False)
+    chart.update_yaxes(
+        title_text="% dentro do prazo",
+        range=[0, 115],
+        tickmode="array",
+        tickvals=[0, 20, 40, 60, 80, 100],
+        ticksuffix="%",
+    )
+    chart.update_layout(showlegend=False, margin={"t": 70, "r": 20, "b": 60, "l": 55})
     return chart
 
 
@@ -72,12 +86,20 @@ def overview() -> None:
     budget = data["budget"]
     metric_row(
         [
-            ("Iniciativas", len(data["initiatives"])),
-            ("Projetos ativos", data["active"]),
-            ("Atrasados", data["overdue"]),
-            ("Orçamento", brl(budget["planned"])),
-            ("Gasto realizado", brl(budget["actual"])),
-            ("Casos de IA", data["ai_total"]),
+            Metric("Iniciativas", len(data["initiatives"])),
+            Metric("Projetos ativos", data["active"]),
+            Metric("Atrasados", data["overdue"]),
+            Metric(
+                "Orçamento",
+                compact_brl(budget["planned"]),
+                help=f"Valor exato: {brl(budget['planned'])}",
+            ),
+            Metric(
+                "Gasto realizado",
+                compact_brl(budget["actual"]),
+                help=f"Valor exato: {brl(budget['actual'])}",
+            ),
+            Metric("Casos de IA", data["ai_total"]),
         ]
     )
     metrics: list[AreaDeliveryMetric] = data["area_delivery"]

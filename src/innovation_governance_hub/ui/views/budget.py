@@ -4,9 +4,14 @@ import streamlit as st
 
 from innovation_governance_hub.domain.clock import business_date
 from innovation_governance_hub.exceptions import DomainError
-from innovation_governance_hub.ui.components import metric_row
+from innovation_governance_hub.ui.components import Metric, metric_row
 from innovation_governance_hub.ui.context import app_services
-from innovation_governance_hub.ui.formatting import brl
+from innovation_governance_hub.ui.formatting import brl, compact_brl
+
+
+def _money_metric(label: str, amount: object) -> Metric:
+    return Metric(label, compact_brl(amount), help=f"Valor exato: {brl(amount)}")  # type: ignore[arg-type]
+
 
 CATEGORIES = [
     "Ferramentas e software",
@@ -78,12 +83,12 @@ def budget() -> None:
                     st.error(str(exc))
     metric_row(
         [
-            ("Planejado", brl(value["planned"])),
-            ("Realizado", brl(value["actual"])),
-            ("Previsto", brl(value["forecast"])),
-            ("Comprometido", brl(value["committed"])),
-            ("Saldo após compromissos", brl(value["balance_after_commitments"])),
-            ("Projeção até dezembro", brl(value["year_end_projection"])),
+            _money_metric("Planejado", value["planned"]),
+            _money_metric("Realizado", value["actual"]),
+            _money_metric("Previsto", value["forecast"]),
+            _money_metric("Comprometido", value["committed"]),
+            _money_metric("Saldo após compromissos", value["balance_after_commitments"]),
+            _money_metric("Projeção até dezembro", value["year_end_projection"]),
         ]
     )
     st.caption(
